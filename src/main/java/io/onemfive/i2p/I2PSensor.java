@@ -767,26 +767,4 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         return true;
     }
 
-    public static void main(String[] args) {
-        Properties p = new Properties();
-        p.setProperty("1m5.dir.base",args[0]);
-
-        I2PSensor sensor = new I2PSensor(null, Envelope.Sensitivity.MEDIUM, 100);
-        sensor.start(p);
-
-        long maxWaitMs = 10 * 60 * 1000; // 10 minutes
-        long periodicWaitMs = 30 * 1000; // 30 seconds
-        long currentWaitMs = 0;
-        while(currentWaitMs < maxWaitMs || sensor.getStatus() == SensorStatus.NETWORK_CONNECTED) {
-            LOG.info("I2P Network Status: "+sensor.getStatus().name());
-            if(sensor.getStatus() == SensorStatus.NETWORK_CONNECTED) {
-                Envelope e = Envelope.documentFactory();
-                DLC.addContent("Hello World",e);
-                sensor.send(e);
-            }
-            Wait.aMs(periodicWaitMs);
-            currentWaitMs += periodicWaitMs;
-        }
-        sensor.gracefulShutdown();
-    }
 }
