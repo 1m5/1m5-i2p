@@ -88,6 +88,8 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             "outbound.backupQuantity",
     });
 
+    public I2PSensor() {super();}
+
     public I2PSensor(SensorsService sensorsService, Envelope.Sensitivity sensitivity, Integer priority) {
         super(sensorsService, sensitivity, priority);
     }

@@ -1,6 +1,6 @@
 package io.onemfive.i2p.bote.network;
 
-import io.onemfive.core.sensors.i2p.bote.email.EmailDestination;
+import io.onemfive.i2p.bote.email.EmailDestination;
 
 public class EmailAddressResolver {
 
