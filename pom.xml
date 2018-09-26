@@ -46,19 +46,19 @@
 		<profile>
 			<id>Development</id>
 			<properties>
-				<logfile>/1m5/logs/i2p.log</logfile>
+				<isTest>true</isTest>
 			</properties>
 		</profile>
 		<profile>
 			<id>QA</id>
 			<properties>
-				<logfile>/1m5/logs/i2p.log</logfile>
+				<isTest>true</isTest>
 			</properties>
 		</profile>
 		<profile>
 			<id>Production</id>
 			<properties>
-				<logfile>/1m5/logs/i2p.log</logfile>
+				<isTest>false</isTest>
 			</properties>
 		</profile>
 	</profiles>

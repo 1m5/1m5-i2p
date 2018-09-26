@@ -669,8 +669,9 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
     private boolean copyCertificatesToBaseDir(File reseedCertificates, File sslCertificates) {
         final String path = "io/onemfive/i2p/bote";
         // Android apps are doing this within their startup as unable to extract these files from jars
-        if(properties.getProperty(Config.PROP_OPERATING_SYSTEM) != null) {
-            if(!properties.getProperty(Config.PROP_OPERATING_SYSTEM).equals(Config.OS.Android.name())) {
+        boolean isTest = "true".equals(properties.getProperty("1m5.sensors.i2p.isTest"));
+        if(!isTest) {
+            if(!SystemVersion.isAndroid()) {
                 // Other - extract as jar
                 String jarPath = getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
                 final File jarFile = new File(jarPath);
