@@ -232,6 +232,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
      * destination if no key file exists.
      */
     private void initializeSession() throws I2PSessionException {
+        LOG.info("Initializing I2P Session....");
         updateStatus(SensorStatus.INITIALIZING);
         Properties sessionProperties = new Properties();
         // set tunnel names
@@ -428,16 +429,20 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             return false;
 
         // Start I2P Router
-        LOG.info("Starting I2P Router...");
+        LOG.info("Launching I2P Router...");
         new Thread(new RouterStarter()).start();
 
         CountDownLatch startSignal = new CountDownLatch(1);
         CountDownLatch doneSignal = new CountDownLatch(1);
 
+        LOG.info("Creating I2P Client...");
         i2pClient = I2PClientFactory.createClient();
+        LOG.info("I2P Client created.");
         try {
             updateStatus(SensorStatus.WAITING);
+            LOG.info("Waiting 3 minutes for I2P Router to warm up...");
             startSignal.await(3, TimeUnit.MINUTES);
+            LOG.info("I2P Router should be warmed up, ready to initialize session....");
             updateStatus(SensorStatus.STARTING);
             initializeSession();
             doneSignal.countDown();
@@ -466,8 +471,11 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
 
     @Override
     public boolean restart() {
-        if(router != null)
+        if(router != null) {
+            LOG.info("Restarting I2P Sensor...");
             router.restart();
+            LOG.info("I2P Router restarted.");
+        }
         return true;
     }
 
@@ -488,28 +496,34 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
 
     private class RouterStarter implements Runnable {
         public void run() {
+            LOG.info("I2P Router starting...");
             router = new Router(properties);
             router.setKillVMOnEnd(false);
             router.runRouter();
             routerContext = router.getContext();
+            LOG.info("I2P Router started.");
         }
     }
 
     private class RouterStopper implements Runnable {
         public void run() {
+            LOG.info("I2P router stopping...");
             if(router != null) {
                 router.shutdown(Router.EXIT_HARD);
             }
             updateStatus(SensorStatus.SHUTDOWN);
+            LOG.info("I2P router stopped.");
         }
     }
 
     private class RouterGracefulStopper implements Runnable {
         public void run() {
+            LOG.info("I2P router gracefully stopping...");
             if(router != null) {
                 router.shutdownGracefully(Router.EXIT_GRACEFUL);
             }
             updateStatus(SensorStatus.GRACEFULLY_SHUTDOWN);
+            LOG.info("I2P router gracefully stopped.");
         }
     }
 
