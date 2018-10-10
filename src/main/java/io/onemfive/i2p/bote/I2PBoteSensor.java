@@ -43,6 +43,10 @@ public class I2PBoteSensor extends I2PSensor implements NetworkStatusListener, N
 
     private static final Logger LOG = Logger.getLogger(I2PBoteSensor.class.getName());
 
+    public I2PBoteSensor() {
+        super();
+    }
+
     public I2PBoteSensor(SensorsService sensorsService, Envelope.Sensitivity sensitivity, Integer priority) {
         super(sensorsService, sensitivity, priority);
     }
@@ -444,28 +448,28 @@ public class I2PBoteSensor extends I2PSensor implements NetworkStatusListener, N
         return true;
     }
 
-    public static void main(String[] args) {
-        Properties p = new Properties();
-        p.setProperty("1m5.dir.base",args[0]);
-
-        I2PBoteSensor i2PBoteSensor = new I2PBoteSensor(null, Envelope.Sensitivity.VERYHIGH, 100);
-        i2PBoteSensor.start(p);
-
-        long maxWaitMs = 10 * 60 * 1000; // 10 minutes
-        long periodicWaitMs = 30 * 1000; // 30 seconds
-        long currentWaitMs = 0;
-        NetworkStatus status = NetworkStatus.NOT_STARTED;
-        while(currentWaitMs < maxWaitMs || status == NetworkStatus.CONNECTED) {
-            status = i2PBoteSensor.getNetworkStatus();
-            LOG.info("I2PBote Network Status: "+status.name());
-            if(status == NetworkStatus.CONNECTED) {
-                Envelope e = Envelope.documentFactory();
-                DLC.addContent("Hello World",e);
-                i2PBoteSensor.send(e);
-            }
-            Wait.aMs(periodicWaitMs);
-            currentWaitMs += periodicWaitMs;
-        }
-        i2PBoteSensor.gracefulShutdown();
-    }
+//    public static void main(String[] args) {
+//        Properties p = new Properties();
+//        p.setProperty("1m5.dir.base",args[0]);
+//
+//        I2PBoteSensor i2PBoteSensor = new I2PBoteSensor(null, Envelope.Sensitivity.VERYHIGH, 100);
+//        i2PBoteSensor.start(p);
+//
+//        long maxWaitMs = 10 * 60 * 1000; // 10 minutes
+//        long periodicWaitMs = 30 * 1000; // 30 seconds
+//        long currentWaitMs = 0;
+//        NetworkStatus status = NetworkStatus.NOT_STARTED;
+//        while(currentWaitMs < maxWaitMs || status == NetworkStatus.CONNECTED) {
+//            status = i2PBoteSensor.getNetworkStatus();
+//            LOG.info("I2PBote Network Status: "+status.name());
+//            if(status == NetworkStatus.CONNECTED) {
+//                Envelope e = Envelope.documentFactory();
+//                DLC.addContent("Hello World",e);
+//                i2PBoteSensor.send(e);
+//            }
+//            Wait.aMs(periodicWaitMs);
+//            currentWaitMs += periodicWaitMs;
+//        }
+//        i2PBoteSensor.gracefulShutdown();
+//    }
 }

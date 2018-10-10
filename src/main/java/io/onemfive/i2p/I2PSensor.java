@@ -10,6 +10,7 @@ import io.onemfive.data.EventMessage;
 import io.onemfive.data.Peer;
 import io.onemfive.data.util.DLC;
 import io.onemfive.sensors.*;
+import net.i2p.I2PAppContext;
 import net.i2p.I2PException;
 import net.i2p.client.*;
 import net.i2p.client.datagram.I2PDatagramDissector;
@@ -501,6 +502,12 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             router.setKillVMOnEnd(false);
             router.runRouter();
             routerContext = router.getContext();
+            routerContext.addShutdownTask(new Runnable() {
+                @Override
+                public void run() {
+                    shutdown();
+                }
+            });
             LOG.info("I2P Router started.");
         }
     }
@@ -782,6 +789,19 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             return false;
         }
         return true;
+    }
+
+    public static void main(String[] args) {
+        File f = new File(args[0]);
+        if(!f.exists() && !f.mkdir()) {
+            System.out.println("Unable to create directory "+args[0]);
+            System.exit(-1);
+        }
+        Properties p = new Properties();
+        p.setProperty("1m5.dir.base",args[0]);
+        p.setProperty("1m5.sensors.i2p.isTest","true");
+        I2PSensor s = new I2PSensor(null, Envelope.Sensitivity.HIGH, 100);
+        s.start(p);
     }
 
 }
