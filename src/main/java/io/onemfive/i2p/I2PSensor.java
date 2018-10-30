@@ -91,8 +91,8 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
 
     public I2PSensor() {super();}
 
-    public I2PSensor(SensorsService sensorsService, Envelope.Sensitivity sensitivity, Integer priority) {
-        super(sensorsService, sensitivity, priority);
+    public I2PSensor(SensorManager sensorManager, Envelope.Sensitivity sensitivity, Integer priority) {
+        super(sensorManager, sensitivity, priority);
     }
 
     @Override
@@ -160,7 +160,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
 
     @Override
     public boolean reply(Envelope e) {
-        sensorsService.sendToBus(e);
+        sensorManager.sendToBus(e);
         return true;
     }
 
@@ -221,6 +221,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
     @Override
     public void disconnected(I2PSession session) {
         LOG.warning("I2P Session disconnected.");
+        sensorManager.updateSensorStatus(I2PSensor.class.getName(), SensorStatus.NETWORK_STOPPED);
     }
 
     @Override

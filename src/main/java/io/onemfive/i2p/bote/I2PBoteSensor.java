@@ -47,8 +47,8 @@ public class I2PBoteSensor extends I2PSensor implements NetworkStatusListener, N
         super();
     }
 
-    public I2PBoteSensor(SensorsService sensorsService, Envelope.Sensitivity sensitivity, Integer priority) {
-        super(sensorsService, sensitivity, priority);
+    public I2PBoteSensor(SensorManager sensorManager, Envelope.Sensitivity sensitivity, Integer priority) {
+        super(sensorManager, sensitivity, priority);
     }
 
     @Override
@@ -258,7 +258,7 @@ public class I2PBoteSensor extends I2PSensor implements NetworkStatusListener, N
 
     @Override
     public boolean reply(Envelope e) {
-        sensorsService.sendToBus(e);
+        sensorManager.sendToBus(e);
         return true;
     }
 
