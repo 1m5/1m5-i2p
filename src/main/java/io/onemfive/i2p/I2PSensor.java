@@ -220,8 +220,8 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
 
     @Override
     public void disconnected(I2PSession session) {
-        LOG.warning("I2P Session disconnected.");
-        sensorManager.updateSensorStatus(I2PSensor.class.getName(), SensorStatus.NETWORK_STOPPED);
+        LOG.warning("I2P Session reporting disconnection.");
+        routerStatusChanged();
     }
 
     @Override
