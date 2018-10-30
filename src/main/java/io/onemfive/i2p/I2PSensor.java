@@ -474,7 +474,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
     @Override
     public boolean restart() {
         if(router != null) {
-            LOG.info("Restarting I2P Sensor...");
+            LOG.info("Restarting I2P Router...");
             router.restart();
             LOG.info("I2P Router restarted.");
         }
