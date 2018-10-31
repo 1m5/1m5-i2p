@@ -307,11 +307,21 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         i2pSession.connect();
 
         Destination localDestination = i2pSession.getMyDestination();
-        LOG.info("I2PSensor Local destination key (base64): " + localDestination.toBase64());
+        String localKey = localDestination.toBase64();
+        LOG.info("I2PSensor Local destination key (base64): " + localKey);
         LOG.info("I2PSensor Local destination hash (base64): " + localDestination.calculateHash().toBase64());
 
         i2pSession.addMuxedSessionListener(this, I2PSession.PROTO_DATAGRAM, I2PSession.PORT_ANY);
 
+        // Publish local I2P address
+        DID did = new DID();
+        did.addPeer(new Peer(Peer.NETWORK_I2P, localKey));
+        Envelope e = Envelope.eventFactory(EventMessage.Type.STATUS_DID);
+        EventMessage m = (EventMessage)e.getMessage();
+        m.setName(io.onemfive.data.DID.class.getName());
+        m.setMessage(did);
+        DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
+        sensorManager.sendToBus(e);
     }
 
     @Override
