@@ -170,6 +170,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             msg = session.receiveMessage(msgId);
         } catch (I2PSessionException e) {
             LOG.warning("Can't get new message from I2PSession: " + e.getLocalizedMessage());
+            return;
         }
         if (msg == null) {
             LOG.warning("I2PSession returned a null message: msgId=" + msgId + ", size=" + size + ", " + session);
