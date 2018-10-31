@@ -1,16 +1,14 @@
 package io.onemfive.i2p;
 
 import io.onemfive.core.Config;
-import io.onemfive.core.ServiceRequest;
 import io.onemfive.core.notification.NotificationService;
-import io.onemfive.core.util.Wait;
 import io.onemfive.data.DID;
 import io.onemfive.data.Envelope;
 import io.onemfive.data.EventMessage;
 import io.onemfive.data.Peer;
 import io.onemfive.data.util.DLC;
+import io.onemfive.data.util.JSONParser;
 import io.onemfive.sensors.*;
-import net.i2p.I2PAppContext;
 import net.i2p.I2PException;
 import net.i2p.client.*;
 import net.i2p.client.datagram.I2PDatagramDissector;
@@ -189,10 +187,13 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             did.addPeer(from);
             e.setDID(did);
             EventMessage m = (EventMessage)e.getMessage();
-            m.setMessage(new String(payload));
+            Map<String,Object> map = new HashMap<>();
+            map.put("type", String.class.getName());
+            map.put("value", io.onemfive.core.util.data.Base64.encode(payload));
+            m.setMessage(JSONParser.toString(map));
             m.setName(from.getAddress());
             DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
-            reply(e);
+            sensorManager.sendToBus(e);
         }
         catch (DataFormatException e) {
             LOG.warning("Invalid datagram received: "+e.getLocalizedMessage());
@@ -216,6 +217,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
     @Override
     public void reportAbuse(I2PSession i2PSession, int severity) {
         LOG.warning("I2P Session reporting abuse. Severity="+severity);
+        routerStatusChanged();
     }
 
     @Override
@@ -227,6 +229,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
     @Override
     public void errorOccurred(I2PSession session, String message, Throwable throwable) {
         LOG.severe("Router says: "+message+": "+throwable.getLocalizedMessage());
+        routerStatusChanged();
     }
 
     /**
@@ -317,9 +320,11 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         DID did = new DID();
         did.addPeer(new Peer(Peer.NETWORK_I2P, localKey));
         Envelope e = Envelope.eventFactory(EventMessage.Type.STATUS_DID);
+        Map<String,Object> mp = did.toMap();
+        mp.put("type",DID.class.getName());
         EventMessage m = (EventMessage)e.getMessage();
-        m.setName(io.onemfive.data.DID.class.getName());
-        m.setMessage(did);
+        m.setName(DID.class.getName());
+        m.setMessage(JSONParser.toString(mp));
         DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
         sensorManager.sendToBus(e);
     }
