@@ -188,11 +188,8 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             did.addPeer(from);
             e.setDID(did);
             EventMessage m = (EventMessage)e.getMessage();
-            Map<String,Object> map = new HashMap<>();
-            map.put("type", String.class.getName());
-            map.put("value", io.onemfive.core.util.data.Base64.encode(payload));
-            m.setMessage(JSONParser.toString(map));
             m.setName(from.getAddress());
+            m.setMessage(io.onemfive.core.util.data.Base64.encode(payload));
             DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
             sensorManager.sendToBus(e);
         }
@@ -256,8 +253,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             byte[] localDestinationKey = Base64.decode(new String(destKeyBuffer));
             ByteArrayInputStream inputStream = new ByteArrayInputStream(localDestinationKey);
             socketManager = I2PSocketManagerFactory.createDisconnectedManager(inputStream, null, 0, sessionProperties);
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             LOG.info("Destination key file doesn't exist or isn't readable." + e);
         } catch (I2PSessionException e) {
             // Won't happen, inputStream != null
@@ -321,11 +317,9 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         DID did = new DID();
         did.addPeer(new Peer(Peer.NETWORK_I2P, localKey));
         Envelope e = Envelope.eventFactory(EventMessage.Type.STATUS_DID);
-        Map<String,Object> mp = did.toMap();
-        mp.put("type",DID.class.getName());
         EventMessage m = (EventMessage)e.getMessage();
-        m.setName(DID.class.getName());
-        m.setMessage(JSONParser.toString(mp));
+        m.setName(localKey);
+        m.setMessage(did);
         DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
         sensorManager.sendToBus(e);
     }
