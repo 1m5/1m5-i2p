@@ -8,6 +8,7 @@ import io.onemfive.data.EventMessage;
 import io.onemfive.data.Peer;
 import io.onemfive.data.util.DLC;
 import io.onemfive.data.util.JSONParser;
+import io.onemfive.i2p.tasks.TaskRunner;
 import io.onemfive.sensors.*;
 import net.i2p.I2PException;
 import net.i2p.client.*;
@@ -27,6 +28,7 @@ import net.i2p.util.*;
 import java.io.*;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -71,6 +73,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
     private I2PClient i2pClient;
     private I2PSession i2pSession;
     private I2PSocketManager socketManager;
+    private TaskRunner taskRunner;
 
     // I2CP parameters allowed in the config file
     // Undefined parameters use the I2CP defaults
@@ -322,6 +325,10 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         m.setMessage(did);
         DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
         sensorManager.sendToBus(e);
+
+        // Launch TaskRunner
+        taskRunner = new TaskRunner(this, did, properties);
+        taskRunner.start();
     }
 
     @Override
@@ -494,6 +501,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
     @Override
     public boolean shutdown() {
         updateStatus(SensorStatus.SHUTTING_DOWN);
+        taskRunner.shutdown();
         new Thread(new RouterStopper()).start();
         return true;
     }
