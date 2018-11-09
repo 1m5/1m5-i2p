@@ -527,6 +527,8 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
                     shutdown();
                 }
             });
+            // Hard code to INFO for now for troubleshooting; need to move to configuration
+            routerContext.logManager().setDefaultLimit(Log.STR_INFO);
             LOG.info("I2P Router started.");
         }
     }
