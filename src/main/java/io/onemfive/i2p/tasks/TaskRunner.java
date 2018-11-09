@@ -30,7 +30,7 @@ public class TaskRunner extends AppThread {
     private DID localDID;
     private Properties properties;
     private long lastSent;
-    private boolean lastSentReceived = false;
+    private boolean lastSentReceived = true;
 
     public TaskRunner(I2PSensor sensor, DID localDID, Properties properties) {
         this.sensor = sensor;
