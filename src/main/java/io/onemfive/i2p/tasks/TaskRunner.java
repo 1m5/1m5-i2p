@@ -8,11 +8,13 @@ import io.onemfive.i2p.I2PSensor;
 import io.onemfive.sensors.SensorRequest;
 
 import java.security.SecureRandom;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
 
 /**
- * Runs CDNGraphTasks based on Timers.
+ * Runs I2P Tasks.
  *
  * @author objectorange
  */
@@ -22,15 +24,12 @@ public class TaskRunner extends AppThread {
 
     public enum Status {Running, Stopping, Shutdown}
     private static final short timeBetweenRunsMinutes = 10;
-    private String connectedVerifier;
 
-    private final Object lock = new Object();
     private Status status = Status.Shutdown;
     private I2PSensor sensor;
     private DID localDID;
     private Properties properties;
-    private long lastSent;
-    private boolean lastSentReceived = true;
+    private Map<String,Long> checks = new HashMap<>();
 
     public TaskRunner(I2PSensor sensor, DID localDID, Properties properties) {
         this.sensor = sensor;
@@ -43,29 +42,22 @@ public class TaskRunner extends AppThread {
         status = Status.Running;
         LOG.info("I2PSensor Task Runner running...");
         while(status == Status.Running) {
+            // Now send a message to itself to verify it's online
+            String connectedVerifier = "1M5:" + new SecureRandom().nextLong();
+            checks.put(connectedVerifier, System.currentTimeMillis());
+            LOG.info("I2P Router Status: "+sensor.getRouterStatus().name()+"; Sending: "+connectedVerifier);
+            SensorRequest r = new SensorRequest();
+            r.to = localDID;
+            r.from = localDID;
+            Envelope e = Envelope.documentFactory();
+            DLC.addData(SensorRequest.class, r, e);
+            DLC.addContent(connectedVerifier, e);
+            sensor.send(e);
             try {
-                LOG.info("Sleeping for "+timeBetweenRunsMinutes+" minutes..");
                 synchronized (this) {
                     this.wait(timeBetweenRunsMinutes * 60 * 1000);
                 }
             } catch (InterruptedException ex) {
-            }
-            if(lastSentReceived) {
-                LOG.info("Awoke, begin building connection verifier request...");
-                lastSent = System.currentTimeMillis();
-                // Now send a message to itself to verify it's online
-                connectedVerifier = new SecureRandom().nextLong() + "";
-                SensorRequest r = new SensorRequest();
-                r.to = localDID;
-                r.from = localDID;
-                Envelope e = Envelope.documentFactory();
-                DLC.addData(SensorRequest.class, r, e);
-                DLC.addContent(connectedVerifier, e);
-                sensor.send(e);
-                lastSentReceived = false;
-                LOG.info("I2PSensor connection verifier request sent, sleeping...");
-            } else {
-                LOG.info("Awoke but last sent not received yet.");
             }
         }
         LOG.info("Task Runner Stopped.");
@@ -73,11 +65,12 @@ public class TaskRunner extends AppThread {
     }
 
     public void verify(String code) {
-        long now = System.currentTimeMillis();
-        boolean verified = connectedVerifier.equals(code);
-        LOG.info("Received connection verifier response in "+ (now-lastSent) + " milliseconds. Connection "
-                +((verified)?"verified":"not verified."));
-        lastSentReceived = true;
+        Long begin = checks.get(code);
+        if(begin == null)
+            LOG.info("Message received ("+code+") not a connection verifier. Ignoring.");
+        else {
+            LOG.info("Received connection verifier " + code + " response in " + ((System.currentTimeMillis() - begin)/1000) + " seconds.");
+        }
     }
 
     public void shutdown() {

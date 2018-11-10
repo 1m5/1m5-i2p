@@ -90,6 +90,8 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             "outbound.backupQuantity",
     });
 
+    private boolean isTest = false;
+
     public I2PSensor() {super();}
 
     public I2PSensor(SensorManager sensorManager, Envelope.Sensitivity sensitivity, Integer priority) {
@@ -180,29 +182,33 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             return;
         }
 
-        I2PDatagramDissector d = new I2PDatagramDissector();
         try {
+            I2PDatagramDissector d = new I2PDatagramDissector();
             d.loadI2PDatagram(msg);
             byte[] payload = d.getPayload();
+            String strPayload = new String(payload);
             Destination sender = d.getSender();
-            Envelope e = Envelope.eventFactory(EventMessage.Type.TEXT);
-            Peer from = new Peer(Peer.NETWORK_I2P, sender.toBase64());
-            DID did = new DID();
-            did.addPeer(from);
-            e.setDID(did);
-            EventMessage m = (EventMessage)e.getMessage();
-            m.setName(from.getAddress());
-            m.setMessage(io.onemfive.core.util.data.Base64.encode(payload));
-            DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
-            sensorManager.sendToBus(e);
-        }
-        catch (DataFormatException e) {
-            LOG.warning("Invalid datagram received: "+e.getLocalizedMessage());
-        }
-        catch (I2PInvalidDatagramException e) {
-            LOG.warning("Datagram failed verification: "+e.getLocalizedMessage());
-        }
-        catch (Exception e) {
+            taskRunner.verify(strPayload);
+            if(isTest) {
+                LOG.info("Received: " + strPayload);
+                LOG.info("From: "+ sender.toBase64());
+            } else {
+                Envelope e = Envelope.eventFactory(EventMessage.Type.TEXT);
+                Peer from = new Peer(Peer.NETWORK_I2P, sender.toBase64());
+                DID did = new DID();
+                did.addPeer(from);
+                e.setDID(did);
+                EventMessage m = (EventMessage) e.getMessage();
+                m.setName(from.getAddress());
+                m.setMessage(io.onemfive.core.util.data.Base64.encode(payload));
+                DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
+                sensorManager.sendToBus(e);
+            }
+        } catch (DataFormatException e) {
+            LOG.warning("Invalid datagram received: " + e.getLocalizedMessage());
+        } catch (I2PInvalidDatagramException e) {
+            LOG.warning("Datagram failed verification: " + e.getLocalizedMessage());
+        } catch (Exception e) {
             LOG.severe("Error processing datagram: " + e.getLocalizedMessage());
         }
     }
@@ -316,15 +322,17 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
 
         i2pSession.addMuxedSessionListener(this, I2PSession.PROTO_DATAGRAM, I2PSession.PORT_ANY);
 
-        // Publish local I2P address
         DID did = new DID();
         did.addPeer(new Peer(Peer.NETWORK_I2P, localKey));
-        Envelope e = Envelope.eventFactory(EventMessage.Type.STATUS_DID);
-        EventMessage m = (EventMessage)e.getMessage();
-        m.setName(localKey);
-        m.setMessage(did);
-        DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
-        sensorManager.sendToBus(e);
+        if(!isTest) {
+            // Publish local I2P address
+            Envelope e = Envelope.eventFactory(EventMessage.Type.STATUS_DID);
+            EventMessage m = (EventMessage) e.getMessage();
+            m.setName(localKey);
+            m.setMessage(did);
+            DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
+            sensorManager.sendToBus(e);
+        }
 
         // Launch TaskRunner
         taskRunner = new TaskRunner(this, did, properties);
@@ -334,7 +342,9 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
     @Override
     public boolean start(Properties p) {
         LOG.info("Starting I2P Sensor...");
+        properties = p;
         updateStatus(SensorStatus.STARTING);
+        isTest = "true".equals(properties.getProperty("1m5.sensors.i2p.isTest"));
         // I2P Sensor Starting
         LOG.info("Loading I2P properties...");
         properties = p;
@@ -711,7 +721,6 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
     private boolean copyCertificatesToBaseDir(File reseedCertificates, File sslCertificates) {
         final String path = "io/onemfive/i2p";
         // Android apps are doing this within their startup as unable to extract these files from jars
-        boolean isTest = "true".equals(properties.getProperty("1m5.sensors.i2p.isTest"));
         if(!isTest) {
             if(!SystemVersion.isAndroid()) {
                 // Other - extract as jar
@@ -774,7 +783,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             }
         } else {
             // called while testing in an IDE
-            URL boteFolderURL = I2PSensor.class.getResource(path);
+            URL boteFolderURL = I2PSensor.class.getClassLoader().getResource(path);
             File boteResFolder = null;
             try {
                 boteResFolder = new File(boteFolderURL.toURI());
