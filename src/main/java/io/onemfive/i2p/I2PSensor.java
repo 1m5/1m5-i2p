@@ -45,6 +45,8 @@ import java.util.logging.Logger;
  */
 public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
 
+    private static final String seedKey = "J8a-3~hlNJVxattRbTuROLXffUss1jVy9Ul8b0CnBIxh5ihu5oZH-CeXPybWlF5vG-3st9p2d6B6iP3tJ0vbJmzu5PlSZTF7Lt3Q-~31C9Hv5jwVj6xWke7dHTyzy2cnLBK2ziG2jx~i-WSePVRmEKx6S4XTucswvzR0Bqba0n3YgWp4FzAay1Yt2mY1Cnalnv3nveNDIecgEYf~j-RkHVCoeF0U4-N82452p4CT6ttJ7gIAMt6ThbJ97drsmBLRQK9hfiDDhg5YjlA0ZGi3F8KYGzhrR7w-O974aN3zCUOIKj2eZc31f8WHeBkEnD95yN119Z6a8G3VsNuoy6lpH5hlOKHUzqPL9CALbKPpGsC~dREaV6Y9BDIkC0iGkiV4TzcuBnsMGFQL4otVopt-vtPjd7cL9dh9kgpNM51HiT3uNeS9X2xJZnPCU2JUE5lejWA4NXXCPeGGIZQ-0UTGeR3jndYk5wEslbMmoT65nRPIz-cnwudcjlETYv0DvkGDAAAA";
+
     /**
      * 1 = ElGamal-2048 / DSA-1024
      * 2 = ECDH-256 / ECDSA-256
@@ -70,7 +72,6 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
     private String i2pBaseDir;
     protected String i2pAppDir;
 
-    private I2PClient i2pClient;
     private I2PSession i2pSession;
     private I2PSocketManager socketManager;
     private TaskRunner taskRunner;
@@ -281,7 +282,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             LOG.info("Creating new local destination key");
             try {
                 ByteArrayOutputStream arrayStream = new ByteArrayOutputStream();
-                i2pClient.createDestination(arrayStream);
+                I2PClientFactory.createClient().createDestination(arrayStream);
                 byte[] localDestinationKey = arrayStream.toByteArray();
 
                 ByteArrayInputStream inputStream = new ByteArrayInputStream(localDestinationKey);
@@ -322,20 +323,23 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
 
         i2pSession.addMuxedSessionListener(this, I2PSession.PROTO_DATAGRAM, I2PSession.PORT_ANY);
 
-        DID did = new DID();
-        did.addPeer(new Peer(Peer.NETWORK_I2P, localKey));
+        DID localDID = new DID();
+        localDID.addPeer(new Peer(Peer.NETWORK_I2P, localKey));
         if(!isTest) {
             // Publish local I2P address
             Envelope e = Envelope.eventFactory(EventMessage.Type.STATUS_DID);
             EventMessage m = (EventMessage) e.getMessage();
             m.setName(localKey);
-            m.setMessage(did);
+            m.setMessage(localDID);
             DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
             sensorManager.sendToBus(e);
         }
 
+        DID seedDID = new DID();
+        seedDID.addPeer(new Peer(Peer.NETWORK_I2P, seedKey));
+
         // Launch TaskRunner
-        taskRunner = new TaskRunner(this, did, properties);
+        taskRunner = new TaskRunner(this, localDID, seedDID, properties);
         taskRunner.start();
     }
 
@@ -464,9 +468,6 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         CountDownLatch startSignal = new CountDownLatch(1);
         CountDownLatch doneSignal = new CountDownLatch(1);
 
-        LOG.info("Creating I2P Client...");
-        i2pClient = I2PClientFactory.createClient();
-        LOG.info("I2P Client created.");
         try {
             updateStatus(SensorStatus.WAITING);
             LOG.info("Waiting 3 minutes for I2P Router to warm up...");
@@ -539,6 +540,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             });
             // Hard code to INFO for now for troubleshooting; need to move to configuration
             routerContext.logManager().setDefaultLimit(Log.STR_INFO);
+            routerContext.logManager().setFileSize(100000000); // 100 MB
             LOG.info("I2P Router started.");
         }
     }
