@@ -77,15 +77,25 @@
 			<version>${project.version}</version>
 		</dependency>
 		<!-- Sensors: I2P -->
+        <dependency>
+            <groupId>net.i2p</groupId>
+            <artifactId>i2p</artifactId>
+            <version>0.9.37</version>
+        </dependency>
 		<dependency>
 			<groupId>net.i2p</groupId>
 			<artifactId>router</artifactId>
-			<version>0.9.34</version>
+			<version>0.9.37</version>
 		</dependency>
 		<dependency>
 			<groupId>net.i2p.client</groupId>
 			<artifactId>streaming</artifactId>
-			<version>0.9.34</version>
+			<version>0.9.37</version>
+		</dependency>
+		<dependency>
+			<groupId>net.i2p.client</groupId>
+			<artifactId>mstreaming</artifactId>
+			<version>0.9.37</version>
 		</dependency>
 		<!-- Sensors: I2P Bote -->
 		<dependency>
