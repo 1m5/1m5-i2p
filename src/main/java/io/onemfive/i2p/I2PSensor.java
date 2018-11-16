@@ -119,8 +119,8 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
 
     /**
      * Sends UTF-8 content to a Destination using I2P.
-     * @param envelope Envelope containing destination DID as entity and content in message data.
-     *                 Destination DID must contain base64 encoded key for I2P.
+     * @param envelope Envelope containing SensorRequest as data.
+     *                 To DID must contain base64 encoded I2P destination key.
      * @return boolean was successful
      */
     @Override
@@ -154,10 +154,14 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             }
             I2PDatagramMaker m = new I2PDatagramMaker(i2pSession);
             byte[] payload = m.makeI2PDatagram(content.getBytes());
-            if(i2pSession.sendMessage(toDestination, payload, I2PSession.PROTO_UNSPECIFIED, I2PSession.PORT_ANY, I2PSession.PORT_ANY))
+            if(i2pSession.sendMessage(toDestination, payload, I2PSession.PROTO_UNSPECIFIED, I2PSession.PORT_ANY, I2PSession.PORT_ANY)) {
                 LOG.info("I2P Message sent.");
-            else
+                return true;
+            } else {
                 LOG.warning("I2P Message sending failed.");
+                request.errorCode = SensorRequest.SENDING_FAILED;
+                return false;
+            }
         } catch (I2PSessionException e) {
             String errMsg = "Exception while sending I2P message: " + e.getLocalizedMessage();
             LOG.warning(errMsg);
@@ -165,7 +169,6 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             request.errorMessage = errMsg;
             return false;
         }
-        return true;
     }
 
     @Override
@@ -609,10 +612,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             List<RouterContext> routerContexts = RouterContext.listContexts();
             routerContext = routerContexts.get(0);
             router = routerContext.router();
-//            router = new Router(properties);
             router.setKillVMOnEnd(false);
-//            router.runRouter();
-//            routerContext = router.getContext();
             routerContext.addShutdownTask(new RouterStopper());
             // Hard code to INFO for now for troubleshooting; need to move to configuration
             routerContext.logManager().setDefaultLimit(Log.STR_INFO);
