@@ -267,7 +267,8 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
 //            LOG.warning("Received unhandled message with proto="+proto+" and id="+msgId);
     }
 
-    /** Instruct the client that the session specified seems to be under attack
+    /**
+     * Instruct the client that the session specified seems to be under attack
      * and that the client may wish to move its destination to another router.
      * All registered listeners will be called.
      *
@@ -403,12 +404,13 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             sensorManager.sendToBus(e);
         }
 
-        DID seedDID = new DID();
-        seedDID.addPeer(new Peer(Peer.NETWORK_I2P, seedKey));
-
-        // Launch TaskRunner
-        taskRunner = new TaskRunner(this, localDID, seedDID, properties);
-        taskRunner.start();
+        // Launch TaskRunner if testing
+        if(isTest) {
+            DID seedDID = new DID();
+            seedDID.addPeer(new Peer(Peer.NETWORK_I2P, seedKey));
+            taskRunner = new TaskRunner(this, localDID, seedDID, properties);
+            taskRunner.start();
+        }
     }
 
     @Override
