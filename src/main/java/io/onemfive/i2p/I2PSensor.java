@@ -23,6 +23,7 @@ import net.i2p.data.Destination;
 import net.i2p.router.CommSystemFacade;
 import net.i2p.router.Router;
 import net.i2p.router.RouterContext;
+import net.i2p.router.RouterLaunch;
 import net.i2p.util.*;
 
 import java.io.*;
@@ -144,14 +145,16 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         }
 
         try {
-            Destination destination = i2pSession.lookupDest(toPeer.getAddress());
-            if(destination == null) {
-                LOG.warning("I2P Peer Destination not found.");
+            Destination toDestination = i2pSession.lookupDest(toPeer.getAddress());
+            if(toDestination == null) {
+                LOG.warning("I2P Peer To Destination not found.");
                 request.errorCode = SensorRequest.TO_PEER_NOT_FOUND;
                 return false;
             }
-            i2pSession.sendMessage(destination, content.getBytes());
-            LOG.info("I2P Message sent.");
+            if(i2pSession.sendMessage(toDestination, content.getBytes(), I2PSession.PROTO_UNSPECIFIED, I2PSession.PORT_ANY, I2PSession.PORT_ANY))
+                LOG.info("I2P Message sent.");
+            else
+                LOG.warning("I2P Message sending failed.");
         } catch (I2PSessionException e) {
             String errMsg = "Exception while sending I2P message: " + e.getLocalizedMessage();
             LOG.warning(errMsg);
@@ -190,10 +193,9 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             String strPayload = new String(payload);
             Destination sender = d.getSender();
             taskRunner.verify(strPayload);
-            if(isTest) {
-                LOG.info("Received: " + strPayload);
-                LOG.info("From: "+ sender.toBase64());
-            } else {
+            LOG.info("Received: " + strPayload);
+            LOG.info("From: "+ sender.toBase64());
+            if(!isTest) {
                 Envelope e = Envelope.eventFactory(EventMessage.Type.TEXT);
                 Peer from = new Peer(Peer.NETWORK_I2P, sender.toBase64());
                 DID did = new DID();
@@ -216,10 +218,10 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
 
     @Override
     public void messageAvailable(I2PSession session, int msgId, long size, int proto, int fromPort, int toPort) {
-        if (proto == I2PSession.PROTO_DATAGRAM)
+//        if (proto == I2PSession.PROTO_DATAGRAM)
             messageAvailable(session, msgId, size);
-        else
-            LOG.warning("Received unhandled message with proto="+proto+" and id="+msgId);
+//        else
+//            LOG.warning("Received unhandled message with proto="+proto+" and id="+msgId);
     }
 
     @Override
@@ -321,7 +323,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         LOG.info("I2PSensor Local destination key (base64): " + localKey);
         LOG.info("I2PSensor Local destination hash (base64): " + localDestination.calculateHash().toBase64());
 
-        i2pSession.addMuxedSessionListener(this, I2PSession.PROTO_DATAGRAM, I2PSession.PORT_ANY);
+        i2pSession.addMuxedSessionListener(this, I2PSession.PROTO_ANY, I2PSession.PORT_ANY);
 
         DID localDID = new DID();
         localDID.addPeer(new Peer(Peer.NETWORK_I2P, localKey));
@@ -505,8 +507,17 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             LOG.info("Restarting I2P Router...");
             router.restart();
             LOG.info("I2P Router restarted.");
+            return true;
+        } else {
+            router = routerContext.router();
+            if(router != null) {
+                LOG.info("Restarting I2P Router...");
+                router.restart();
+                LOG.info("I2P Router restarted.");
+                return true;
+            }
         }
-        return true;
+        return false;
     }
 
     @Override
@@ -527,27 +538,34 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
 
     private class RouterStarter implements Runnable {
         public void run() {
-            LOG.info("I2P Router starting...");
-            router = new Router(properties);
+            RouterLaunch.main(null);
+            List<RouterContext> routerContexts = RouterContext.listContexts();
+            routerContext = routerContexts.get(0);
+            router = routerContext.router();
+//            router = new Router(properties);
             router.setKillVMOnEnd(false);
-            router.runRouter();
-            routerContext = router.getContext();
-            routerContext.addShutdownTask(new Runnable() {
-                @Override
-                public void run() {
-                    shutdown();
-                }
-            });
+//            router.runRouter();
+//            routerContext = router.getContext();
+            routerContext.addShutdownTask(new RouterStopper());
             // Hard code to INFO for now for troubleshooting; need to move to configuration
             routerContext.logManager().setDefaultLimit(Log.STR_INFO);
             routerContext.logManager().setFileSize(100000000); // 100 MB
-            LOG.info("I2P Router started.");
         }
     }
 
     private class RouterStopper implements Runnable {
         public void run() {
             LOG.info("I2P router stopping...");
+            try {
+                if (i2pSession != null)
+                    i2pSession.destroySession();
+            } catch (I2PSessionException e) {
+                LOG.warning("Can't destroy I2P session.: "+e.getLocalizedMessage());
+            }
+
+            if (socketManager != null)
+                socketManager.destroySocketManager();
+
             if(router != null) {
                 router.shutdown(Router.EXIT_HARD);
             }
@@ -559,6 +577,17 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
     private class RouterGracefulStopper implements Runnable {
         public void run() {
             LOG.info("I2P router gracefully stopping...");
+
+            try {
+                if (i2pSession != null)
+                    i2pSession.destroySession();
+            } catch (I2PSessionException e) {
+                LOG.warning("Can't destroy I2P session.: "+e.getLocalizedMessage());
+            }
+
+            if (socketManager != null)
+                socketManager.destroySocketManager();
+
             if(router != null) {
                 router.shutdownGracefully(Router.EXIT_GRACEFUL);
             }
@@ -668,6 +697,11 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
 
     public CommSystemFacade.Status getRouterStatus() {
         return routerContext.commSystem().getStatus();
+    }
+
+    public void logRouterInfo() {
+        LOG.info("I2P Statistics");
+        LOG.info("  Router Status: "+getRouterStatus().name());
     }
 
     /**
