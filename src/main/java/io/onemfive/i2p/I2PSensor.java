@@ -13,6 +13,7 @@ import io.onemfive.sensors.*;
 import net.i2p.I2PException;
 import net.i2p.client.*;
 import net.i2p.client.datagram.I2PDatagramDissector;
+import net.i2p.client.datagram.I2PDatagramMaker;
 import net.i2p.client.datagram.I2PInvalidDatagramException;
 import net.i2p.client.streaming.I2PSocketManager;
 import net.i2p.client.streaming.I2PSocketManagerFactory;
@@ -151,7 +152,9 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
                 request.errorCode = SensorRequest.TO_PEER_NOT_FOUND;
                 return false;
             }
-            if(i2pSession.sendMessage(toDestination, content.getBytes(), I2PSession.PROTO_UNSPECIFIED, I2PSession.PORT_ANY, I2PSession.PORT_ANY))
+            I2PDatagramMaker m = new I2PDatagramMaker(i2pSession);
+            byte[] payload = m.makeI2PDatagram(content.getBytes());
+            if(i2pSession.sendMessage(toDestination, payload, I2PSession.PROTO_UNSPECIFIED, I2PSession.PORT_ANY, I2PSession.PORT_ANY))
                 LOG.info("I2P Message sent.");
             else
                 LOG.warning("I2P Message sending failed.");
