@@ -52,7 +52,7 @@
 		<profile>
 			<id>QA</id>
 			<properties>
-				<isTest>true</isTest>
+				<isTest>false</isTest>
 			</properties>
 		</profile>
 		<profile>
