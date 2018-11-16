@@ -24,7 +24,7 @@ public class TaskRunner extends AppThread {
     private static final Logger LOG = Logger.getLogger(TaskRunner.class.getName());
 
     public enum Status {Running, Stopping, Shutdown}
-    private static final short timeBetweenRunsMinutes = 10;
+    private static final short timeBetweenRunsMinutes = 1;
 
     private Status status = Status.Shutdown;
     private I2PSensor sensor;
@@ -53,7 +53,7 @@ public class TaskRunner extends AppThread {
         status = Status.Running;
         LOG.info("I2PSensor Task Runner running...");
         while(status == Status.Running) {
-            LOG.info("I2P Router Status: " + sensor.getRouterStatus().name());
+            sensor.logRouterInfo();
             // Now send a message to the seed node to verify it's online
             long now = System.currentTimeMillis();
             if(!isSeed) {
