@@ -174,6 +174,24 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         return true;
     }
 
+    /**
+     * Will be called only if you register via
+     * setSessionListener() or addSessionListener().
+     * And if you are doing that, just use I2PSessionListener.
+     *
+     * If you register via addSessionListener(),
+     * this will be called only for the proto(s) and toport(s) you register for.
+     *
+     * After this is called, the client should call receiveMessage(msgId).
+     * There is currently no method for the client to reject the message.
+     * If the client does not call receiveMessage() within a timeout period
+     * (currently 30 seconds), the session will delete the message and
+     * log an error.
+     *
+     * @param session session to notify
+     * @param msgId message number available
+     * @param size size of the message - why it's a long and not an int is a mystery
+     */
     @Override
     public void messageAvailable(I2PSession session, int msgId, long size) {
         LOG.info("Message received by I2P Sensor...");
@@ -219,26 +237,71 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         }
     }
 
+    /**
+     * Instruct the client that the given session has received a message
+     *
+     * Will be called only if you register via addMuxedSessionListener().
+     * Will be called only for the proto(s) and toport(s) you register for.
+     *
+     * After this is called, the client should call receiveMessage(msgId).
+     * There is currently no method for the client to reject the message.
+     * If the client does not call receiveMessage() within a timeout period
+     * (currently 30 seconds), the session will delete the message and
+     * log an error.
+     *
+     * Only one listener is called for a given message, even if more than one
+     * have registered. See I2PSessionDemultiplexer for details.
+     *
+     * @param session session to notify
+     * @param msgId message number available
+     * @param size size of the message - why it's a long and not an int is a mystery
+     * @param proto 1-254 or 0 for unspecified
+     * @param fromPort 1-65535 or 0 for unspecified
+     * @param toPort 1-65535 or 0 for unspecified
+     */
     @Override
     public void messageAvailable(I2PSession session, int msgId, long size, int proto, int fromPort, int toPort) {
-//        if (proto == I2PSession.PROTO_DATAGRAM)
+//        if (proto == I2PSession.PROTO_DATAGRAM || proto == I2PSession.PROTO_STREAMING)
             messageAvailable(session, msgId, size);
 //        else
 //            LOG.warning("Received unhandled message with proto="+proto+" and id="+msgId);
     }
 
+    /** Instruct the client that the session specified seems to be under attack
+     * and that the client may wish to move its destination to another router.
+     * All registered listeners will be called.
+     *
+     * Unused. Not fully implemented.
+     *
+     * @param i2PSession session to report abuse to
+     * @param severity how bad the abuse is
+     */
     @Override
     public void reportAbuse(I2PSession i2PSession, int severity) {
         LOG.warning("I2P Session reporting abuse. Severity="+severity);
         routerStatusChanged();
     }
 
+    /**
+     * Notify the client that the session has been terminated.
+     * All registered listeners will be called.
+     *
+     * @param session session to report disconnect to
+     */
     @Override
     public void disconnected(I2PSession session) {
         LOG.warning("I2P Session reporting disconnection.");
         routerStatusChanged();
     }
 
+    /**
+     * Notify the client that some throwable occurred.
+     * All registered listeners will be called.
+     *
+     * @param session session to report error occurred
+     * @param message message received describing error
+     * @param throwable throwable thrown during error
+     */
     @Override
     public void errorOccurred(I2PSession session, String message, Throwable throwable) {
         LOG.severe("Router says: "+message+": "+throwable.getLocalizedMessage());
