@@ -394,22 +394,21 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
 
         DID localDID = new DID();
         localDID.addPeer(new Peer(Peer.NETWORK_I2P, localKey));
-        if(!isTest) {
-            // Publish local I2P address
+
+        if(isTest) {
+            // Launch TaskRunner if testing
+            DID seedDID = new DID();
+            seedDID.addPeer(new Peer(Peer.NETWORK_I2P, seedKey));
+            taskRunner = new TaskRunner(this, localDID, seedDID, properties);
+            taskRunner.start();
+        } else {
+            // Otherwise publish local I2P address
             Envelope e = Envelope.eventFactory(EventMessage.Type.STATUS_DID);
             EventMessage m = (EventMessage) e.getMessage();
             m.setName(localKey);
             m.setMessage(localDID);
             DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
             sensorManager.sendToBus(e);
-        }
-
-        // Launch TaskRunner if testing
-        if(isTest) {
-            DID seedDID = new DID();
-            seedDID.addPeer(new Peer(Peer.NETWORK_I2P, seedKey));
-            taskRunner = new TaskRunner(this, localDID, seedDID, properties);
-            taskRunner.start();
         }
     }
 
