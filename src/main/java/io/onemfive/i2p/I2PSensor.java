@@ -144,6 +144,12 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             request.errorCode = SensorRequest.NO_CONTENT;
             return false;
         }
+        byte[] cb = content.getBytes();
+        if(cb.length > 31500) {
+            // Just warn for now
+            // TODO: Split into multiple serialized datagrams
+            LOG.warning("Content longer than 31.5kb. May have issues.");
+        }
 
         try {
             Destination toDestination = i2pSession.lookupDest(toPeer.getAddress());
@@ -153,7 +159,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
                 return false;
             }
             I2PDatagramMaker m = new I2PDatagramMaker(i2pSession);
-            byte[] payload = m.makeI2PDatagram(content.getBytes());
+            byte[] payload = m.makeI2PDatagram(cb);
             if(i2pSession.sendMessage(toDestination, payload, I2PSession.PROTO_UNSPECIFIED, I2PSession.PORT_ANY, I2PSession.PORT_ANY)) {
                 LOG.info("I2P Message sent.");
                 return true;
