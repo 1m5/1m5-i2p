@@ -24,7 +24,7 @@ public class TaskRunner extends AppThread {
     private static final Logger LOG = Logger.getLogger(TaskRunner.class.getName());
 
     public enum Status {Running, Stopping, Shutdown}
-    private static final short timeBetweenRunsMinutes = 1;
+    private static final short timeBetweenRunsMinutes = 10;
 
     private Status status = Status.Shutdown;
     private I2PSensor sensor;
@@ -55,21 +55,21 @@ public class TaskRunner extends AppThread {
         while(status == Status.Running) {
             sensor.logRouterInfo();
             // Now send a message to the seed node to verify it's online
-            long now = System.currentTimeMillis();
-            if(!isSeed) {
-                String connectedVerifier = "1M5-ConnectionVerify:" + now;
-                checks.put(connectedVerifier, now);
-                LOG.info("Sending: " + connectedVerifier);
-                LOG.info("  To: "+seedDID.getPeer(Peer.NETWORK_I2P).getAddress());
-                LOG.info("  From: "+localDID.getPeer(Peer.NETWORK_I2P).getAddress());
-                SensorRequest r = new SensorRequest();
-                r.to = seedDID;
-                r.from = localDID;
-                Envelope e = Envelope.documentFactory();
-                DLC.addData(SensorRequest.class, r, e);
-                DLC.addContent(connectedVerifier, e);
-                sensor.send(e);
-            }
+//            long now = System.currentTimeMillis();
+//            if(!isSeed) {
+//                String connectedVerifier = "1M5-ConnectionVerify:" + now;
+//                checks.put(connectedVerifier, now);
+//                LOG.info("Sending: " + connectedVerifier);
+//                LOG.info("  To: "+seedDID.getPeer(Peer.NETWORK_I2P).getAddress());
+//                LOG.info("  From: "+localDID.getPeer(Peer.NETWORK_I2P).getAddress());
+//                SensorRequest r = new SensorRequest();
+//                r.to = seedDID;
+//                r.from = localDID;
+//                Envelope e = Envelope.documentFactory();
+//                DLC.addData(SensorRequest.class, r, e);
+//                DLC.addContent(connectedVerifier, e);
+//                sensor.send(e);
+//            }
             try {
                 synchronized (this) {
                     this.wait(timeBetweenRunsMinutes * 60 * 1000);
