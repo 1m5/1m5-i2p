@@ -1,6 +1,7 @@
 package io.onemfive.i2p;
 
 import io.onemfive.core.Config;
+import io.onemfive.core.ServiceRequest;
 import io.onemfive.core.notification.NotificationService;
 import io.onemfive.data.DID;
 import io.onemfive.data.Envelope;
@@ -127,6 +128,11 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
     public boolean send(Envelope envelope) {
         LOG.info("Sending I2P Message...");
         SensorRequest request = (SensorRequest)DLC.getData(SensorRequest.class,envelope);
+        if(request == null){
+            LOG.warning("No SensorRequest in Envelope.");
+            request.errorCode = ServiceRequest.REQUEST_REQUIRED;
+            return false;
+        }
         Peer toPeer = request.to.getPeer(Peer.NETWORK_I2P);
         if(toPeer == null) {
             LOG.warning("No Peer for I2P found in toDID while sending to I2P.");
@@ -138,14 +144,13 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             request.errorCode = SensorRequest.TO_PEER_WRONG_NETWORK;
             return false;
         }
-        String content = (String) DLC.getContent(envelope);
-        if(content == null) {
+        LOG.info("Content to send: "+request.content);
+        if(request.content == null) {
             LOG.warning("No content found in Envelope while sending to I2P.");
             request.errorCode = SensorRequest.NO_CONTENT;
             return false;
         }
-        byte[] cb = content.getBytes();
-        if(cb.length > 31500) {
+        if(request.content.length() > 31500) {
             // Just warn for now
             // TODO: Split into multiple serialized datagrams
             LOG.warning("Content longer than 31.5kb. May have issues.");
@@ -159,7 +164,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
                 return false;
             }
             I2PDatagramMaker m = new I2PDatagramMaker(i2pSession);
-            byte[] payload = m.makeI2PDatagram(cb);
+            byte[] payload = m.makeI2PDatagram(request.content.getBytes());
             if(i2pSession.sendMessage(toDestination, payload, I2PSession.PROTO_UNSPECIFIED, I2PSession.PORT_ANY, I2PSession.PORT_ANY)) {
                 LOG.info("I2P Message sent.");
                 return true;
@@ -223,8 +228,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             String strPayload = new String(payload);
             Destination sender = d.getSender();
             taskRunner.verify(strPayload);
-            LOG.info("Received: " + strPayload);
-            LOG.info("From: "+ sender.toBase64());
+            LOG.info("Received Message:\n    From: " + sender.toBase64() +"\n    Content: " + strPayload);
             if(!isTest) {
                 Envelope e = Envelope.eventFactory(EventMessage.Type.TEXT);
                 Peer from = new Peer(Peer.NETWORK_I2P, sender.toBase64());
@@ -233,7 +237,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
                 e.setDID(did);
                 EventMessage m = (EventMessage) e.getMessage();
                 m.setName(from.getAddress());
-                m.setMessage(io.onemfive.core.util.data.Base64.encode(payload));
+                m.setMessage(strPayload);
                 DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
                 sensorManager.sendToBus(e);
             }
@@ -670,7 +674,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         }
     }
 
-    public Properties getI2CPOptions() {
+    private Properties getI2CPOptions() {
         Properties opts = new Properties();
         for (Map.Entry<Object, Object> entry : properties.entrySet()) {
             if (I2CP_PARAMETERS.contains(entry.getKey()))
@@ -679,11 +683,11 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         return opts;
     }
 
-    public File getDestinationKeyFile() {
+    private File getDestinationKeyFile() {
         return new File(i2pDir, DEST_KEY_FILE_NAME);
     }
 
-    public void routerStatusChanged() {
+    private void routerStatusChanged() {
         String statusText;
         switch (getRouterStatus()) {
             case UNKNOWN:
@@ -769,13 +773,12 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         LOG.info(statusText);
     }
 
-    public CommSystemFacade.Status getRouterStatus() {
+    private CommSystemFacade.Status getRouterStatus() {
         return routerContext.commSystem().getStatus();
     }
 
     public void logRouterInfo() {
-        LOG.info("I2P Statistics");
-        LOG.info("  Router Status: "+getRouterStatus().name());
+        LOG.info("I2P Statistics:\n    Router Status: "+getRouterStatus().name());
     }
 
     /**
@@ -786,7 +789,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
      *
      *  @param overrides local overrides or null
      */
-    public void mergeRouterConfig(Properties overrides) {
+    private void mergeRouterConfig(Properties overrides) {
         Properties props = new OrderedProperties();
         File f = new File(i2pBaseDir,"router.config");
         boolean i2pBaseRouterConfigIsNew = false;
