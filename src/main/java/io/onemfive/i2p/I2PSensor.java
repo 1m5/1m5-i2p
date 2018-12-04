@@ -235,7 +235,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
                 did.addPeer(from);
                 e.setDID(did);
                 EventMessage m = (EventMessage) e.getMessage();
-                m.setName(from.getFullAddress());
+                m.setName(from.getDid().getPublicKey().getEncodedBase64());
                 m.setMessage(strPayload);
                 DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
                 sensorManager.sendToBus(e);
