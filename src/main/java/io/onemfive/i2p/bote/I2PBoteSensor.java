@@ -91,7 +91,7 @@ public class I2PBoteSensor extends I2PSensor implements NetworkStatusListener, N
             }
         } else {
             try {
-                Peer fromPeer = fromDID.getPeer(Peer.NETWORK_I2P);
+                NetworkPeer fromPeer = fromDID.getPeer(NetworkPeer.Network.I2P.name());
                 if(fromPeer == null) {
                     // peer not provided
                     if(fromDID.getAlias() != null) {
@@ -100,17 +100,19 @@ public class I2PBoteSensor extends I2PSensor implements NetworkStatusListener, N
                         for (EmailIdentity i : identities) {
                             if (fromDID.getAlias().equals(i.getPublicName())) {
                                 // EmailIdentity's public name is alias
-                                fromPeer = new Peer(Peer.NETWORK_I2P, i.toBase64());
+                                fromPeer = new NetworkPeer(NetworkPeer.Network.I2P.name());
+                                fromPeer.getDid().getPublicKey().setEncodedBase64(i.toBase64());
                             }
                         }
                     }
                     if(fromPeer == null) {
                         // Use default
-                        fromPeer = new Peer(Peer.NETWORK_I2P, I2PBote.getInstance().getLocalDestination().toBase64());
+                        fromPeer = new NetworkPeer(NetworkPeer.Network.I2P.name());
+                        fromPeer.getDid().getPublicKey().setEncodedBase64(I2PBote.getInstance().getLocalDestination().toBase64());
                         fromDID.addPeer(fromPeer);
                     }
                 }
-                sender = new InternetAddress(BoteHelper.getNameAndDestination(fromPeer.getAddress()));
+                sender = new InternetAddress(BoteHelper.getNameAndDestination(fromPeer.getDid().getPublicKey().getEncodedBase64()));
             } catch (AddressException e1) {
                 e1.printStackTrace();
                 LOG.warning("Unable to build InternetAddress using FromDID with hash="+fromDID.toString()+" and alias="+fromDID.getAlias());
@@ -134,14 +136,15 @@ public class I2PBoteSensor extends I2PSensor implements NetworkStatusListener, N
             LOG.warning("To DID required to send I2P Bote message (no destination).");
             return false;
         }
-        Peer toPeer = toDID.getPeer(Peer.NETWORK_I2PBOTE);
+        NetworkPeer toPeer = toDID.getPeer(NetworkPeer.Network.I2PBote.name());
         if(toPeer==null) {
             if(toDID.getAlias() != null) {
                 try {
                     Set<Contact> contacts = I2PBote.getInstance().getAddressBook().getAll();
                     for(Contact c : contacts) {
                         if(toDID.getAlias().equals(c.getName())) {
-                            toPeer = new Peer(Peer.NETWORK_I2PBOTE, c.getBase64Dest());
+                            toPeer = new NetworkPeer(NetworkPeer.Network.I2PBote.name());
+                            toPeer.getDid().getPublicKey().setEncodedBase64(c.getBase64Dest());
                             toDID.addPeer(toPeer);
                         }
                     }
@@ -156,7 +159,7 @@ public class I2PBoteSensor extends I2PSensor implements NetworkStatusListener, N
         }
         InternetAddress recipient;
         try {
-            recipient = new InternetAddress(BoteHelper.getNameAndDestination(toPeer.getAddress()));
+            recipient = new InternetAddress(BoteHelper.getNameAndDestination(toPeer.getDid().getPublicKey().getEncodedBase64()));
         } catch (AddressException e1) {
             e1.printStackTrace();
             LOG.warning("Unable to build InternetAddress using ToDID with hash=" + toDID.toString() + " and alias=" + toDID.getAlias());
@@ -280,8 +283,7 @@ public class I2PBoteSensor extends I2PSensor implements NetworkStatusListener, N
                 String fromAddress = (i2pEmail.getAllFromAddresses().toArray()[0]).toString();
                 fromAddress = fromAddress.substring(fromAddress.indexOf("<")+1);
                 fromAddress = fromAddress.substring(0,fromAddress.length()-1);
-                fromDID.setIdentityHash(fromAddress);
-                fromDID.setIdentityHashAlgorithm("base64");
+                fromDID.getPublicKey().setEncodedBase64(fromAddress);
                 email.setFromDID(fromDID);
                 LOG.info("From Address: "+fromDID.toString());
 
@@ -289,8 +291,7 @@ public class I2PBoteSensor extends I2PSensor implements NetworkStatusListener, N
                 String toAddress = i2pEmail.getToAddresses()[0].toString();
                 toAddress = toAddress.substring(toAddress.indexOf("<")+1);
                 toAddress = toAddress.substring(0,toAddress.length()-1);
-                toDID.setIdentityHash(toAddress);
-                toDID.setIdentityHashAlgorithm("base64");
+                toDID.getPublicKey().setEncodedBase64(toAddress);
                 email.setToDID(toDID);
                 LOG.info("To Address: "+toDID.toString());
 
@@ -310,7 +311,7 @@ public class I2PBoteSensor extends I2PSensor implements NetworkStatusListener, N
                 e.setDID(fromDID);
                 EventMessage m = (EventMessage)e.getMessage();
                 m.setMessage(email);
-                m.setName(fromDID.toString());
+                m.setName(fromAddress);
                 DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH,e);
                 reply(e);
 
