@@ -2,13 +2,9 @@ package io.onemfive.i2p.tasks;
 
 import io.onemfive.core.util.AppThread;
 import io.onemfive.data.DID;
-import io.onemfive.data.Envelope;
-import io.onemfive.data.Peer;
-import io.onemfive.data.util.DLC;
+import io.onemfive.data.NetworkPeer;
 import io.onemfive.i2p.I2PSensor;
-import io.onemfive.sensors.SensorRequest;
 
-import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -39,13 +35,14 @@ public class TaskRunner extends AppThread {
         this.localDID = localDID;
         this.seedDID = seedDID;
         this.properties = properties;
+        String npName = NetworkPeer.Network.I2P.name();
         isSeed = (localDID != null
                 && seedDID != null
-                && localDID.getPeer(Peer.NETWORK_I2P) != null
-                && seedDID.getPeer(Peer.NETWORK_I2P) != null
-                && localDID.getPeer(Peer.NETWORK_I2P).getAddress() != null
-                && seedDID.getPeer(Peer.NETWORK_I2P).getAddress() != null
-                && localDID.getPeer(Peer.NETWORK_I2P).getAddress().equals(seedDID.getPeer(Peer.NETWORK_I2P).getAddress()));
+                && localDID.getPeer(npName) != null
+                && seedDID.getPeer(npName) != null
+                && localDID.getPeer(npName).getFullAddress() != null
+                && seedDID.getPeer(npName).getFullAddress() != null
+                && localDID.getPeer(npName).getFullAddress().equals(seedDID.getPeer(npName).getFullAddress()));
     }
 
     @Override
