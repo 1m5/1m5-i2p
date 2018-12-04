@@ -6,9 +6,8 @@ import io.onemfive.core.notification.NotificationService;
 import io.onemfive.data.DID;
 import io.onemfive.data.Envelope;
 import io.onemfive.data.EventMessage;
-import io.onemfive.data.Peer;
+import io.onemfive.data.NetworkPeer;
 import io.onemfive.data.util.DLC;
-import io.onemfive.data.util.JSONParser;
 import io.onemfive.i2p.tasks.TaskRunner;
 import io.onemfive.sensors.*;
 import net.i2p.I2PException;
@@ -31,7 +30,6 @@ import net.i2p.util.*;
 import java.io.*;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -133,13 +131,13 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             request.errorCode = ServiceRequest.REQUEST_REQUIRED;
             return false;
         }
-        Peer toPeer = request.to.getPeer(Peer.NETWORK_I2P);
+        NetworkPeer toPeer = request.to.getPeer(NetworkPeer.Network.I2P.name());
         if(toPeer == null) {
             LOG.warning("No Peer for I2P found in toDID while sending to I2P.");
             request.errorCode = SensorRequest.TO_PEER_REQUIRED;
             return false;
         }
-        if(!Peer.NETWORK_I2P.equals(toPeer.getNetwork())) {
+        if(!NetworkPeer.Network.I2P.name().equals((toPeer.getNetwork()))) {
             LOG.warning("I2P requires an I2P Peer.");
             request.errorCode = SensorRequest.TO_PEER_WRONG_NETWORK;
             return false;
@@ -157,7 +155,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         }
 
         try {
-            Destination toDestination = i2pSession.lookupDest(toPeer.getAddress());
+            Destination toDestination = i2pSession.lookupDest(toPeer.getFullAddress());
             if(toDestination == null) {
                 LOG.warning("I2P Peer To Destination not found.");
                 request.errorCode = SensorRequest.TO_PEER_NOT_FOUND;
@@ -231,12 +229,13 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             LOG.info("Received Message:\n    From: " + sender.toBase64() +"\n    Content: " + strPayload);
             if(!isTest) {
                 Envelope e = Envelope.eventFactory(EventMessage.Type.TEXT);
-                Peer from = new Peer(Peer.NETWORK_I2P, sender.toBase64());
+                NetworkPeer from = new NetworkPeer(NetworkPeer.Network.I2P.name());
+                from.getDid().getPublicKey().setEncodedBase64(sender.toBase64());
                 DID did = new DID();
                 did.addPeer(from);
                 e.setDID(did);
                 EventMessage m = (EventMessage) e.getMessage();
-                m.setName(from.getAddress());
+                m.setName(from.getFullAddress());
                 m.setMessage(strPayload);
                 DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
                 sensorManager.sendToBus(e);
@@ -406,12 +405,16 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         i2pSession.addMuxedSessionListener(this, I2PSession.PROTO_ANY, I2PSession.PORT_ANY);
 
         DID localDID = new DID();
-        localDID.addPeer(new Peer(Peer.NETWORK_I2P, localKey));
+        NetworkPeer np = new NetworkPeer(NetworkPeer.Network.I2P.name());
+        np.getDid().getPublicKey().setEncodedBase64(localKey);
+        localDID.addPeer(np);
 
         if(isTest) {
             // Launch TaskRunner if testing
             DID seedDID = new DID();
-            seedDID.addPeer(new Peer(Peer.NETWORK_I2P, seedKey));
+            NetworkPeer np2 = new NetworkPeer(NetworkPeer.Network.I2P.name());
+            np2.getDid().getPublicKey().setEncodedBase64(seedKey);
+            seedDID.addPeer(np2);
             taskRunner = new TaskRunner(this, localDID, seedDID, properties);
             taskRunner.start();
         } else {
