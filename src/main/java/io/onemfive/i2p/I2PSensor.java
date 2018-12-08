@@ -3,10 +3,7 @@ package io.onemfive.i2p;
 import io.onemfive.core.Config;
 import io.onemfive.core.ServiceRequest;
 import io.onemfive.core.notification.NotificationService;
-import io.onemfive.data.DID;
-import io.onemfive.data.Envelope;
-import io.onemfive.data.EventMessage;
-import io.onemfive.data.NetworkPeer;
+import io.onemfive.data.*;
 import io.onemfive.data.util.DLC;
 import io.onemfive.i2p.tasks.TaskRunner;
 import io.onemfive.sensors.*;
@@ -399,14 +396,20 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
 
         Destination localDestination = i2pSession.getMyDestination();
         String localKey = localDestination.toBase64();
-        LOG.info("I2PSensor Local destination key (base64): " + localKey);
-        LOG.info("I2PSensor Local destination hash (base64): " + localDestination.calculateHash().toBase64());
+        String fingerprint = localDestination.calculateHash().toBase64();
+        LOG.info("I2PSensor Local destination key in base64: " + localKey);
+        LOG.info("I2PSensor Local destination fingerprint (hash) in base64: " + fingerprint);
 
         i2pSession.addMuxedSessionListener(this, I2PSession.PROTO_ANY, I2PSession.PORT_ANY);
 
-        DID localDID = new DID();
+        PublicKey publicKey = new PublicKey();
+        publicKey.setFingerprint(fingerprint);
+        publicKey.setEncodedBase64(localKey);
+
         NetworkPeer np = new NetworkPeer(NetworkPeer.Network.I2P.name());
-        np.getDid().getPublicKey().setEncodedBase64(localKey);
+        np.getDid().addPublicKey(publicKey);
+
+        DID localDID = new DID();
         localDID.addPeer(np);
 
         if(isTest) {
@@ -419,6 +422,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             taskRunner.start();
         } else {
             // Otherwise publish local I2P address
+            LOG.info("Publishing I2P Network Peer's DID...");
             Envelope e = Envelope.eventFactory(EventMessage.Type.STATUS_DID);
             EventMessage m = (EventMessage) e.getMessage();
             m.setName(localKey);
@@ -565,10 +569,12 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         } catch (InterruptedException e) {
             LOG.warning("Start interrupted, exiting");
             updateStatus(SensorStatus.ERROR);
+            e.printStackTrace();
             return false;
         } catch (Exception e) {
-            LOG.severe("Unable to init I2PSensor: "+e.getLocalizedMessage());
+            LOG.severe("Unable to start I2PSensor: "+e.getLocalizedMessage());
             updateStatus(SensorStatus.ERROR);
+            e.printStackTrace();
             return false;
         }
         LOG.info("Started.");
