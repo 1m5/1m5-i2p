@@ -152,7 +152,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         }
 
         try {
-            Destination toDestination = i2pSession.lookupDest(toPeer.getFullAddress());
+            Destination toDestination = i2pSession.lookupDest(toPeer.getAddress());
             if(toDestination == null) {
                 LOG.warning("I2P Peer To Destination not found.");
                 request.errorCode = SensorRequest.TO_PEER_NOT_FOUND;
@@ -227,12 +227,13 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             if(!isTest) {
                 Envelope e = Envelope.eventFactory(EventMessage.Type.TEXT);
                 NetworkPeer from = new NetworkPeer(NetworkPeer.Network.I2P.name());
-                from.getDid().getPublicKey().setEncodedBase64(sender.toBase64());
+                from.getDid().getPublicKey().setAddress(sender.toBase64());
+                from.getDid().getPublicKey().setFingerprint(sender.getHash().toBase64());
                 DID did = new DID();
                 did.addPeer(from);
                 e.setDID(did);
                 EventMessage m = (EventMessage) e.getMessage();
-                m.setName(from.getDid().getPublicKey().getEncodedBase64());
+                m.setName(from.getDid().getPublicKey().getFingerprint());
                 m.setMessage(strPayload);
                 DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
                 sensorManager.sendToBus(e);
@@ -395,16 +396,16 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         i2pSession.connect();
 
         Destination localDestination = i2pSession.getMyDestination();
-        String localKey = localDestination.toBase64();
+        String address = localDestination.toBase64();
         String fingerprint = localDestination.calculateHash().toBase64();
-        LOG.info("I2PSensor Local destination key in base64: " + localKey);
+        LOG.info("I2PSensor Local destination key in base64: " + address);
         LOG.info("I2PSensor Local destination fingerprint (hash) in base64: " + fingerprint);
 
         i2pSession.addMuxedSessionListener(this, I2PSession.PROTO_ANY, I2PSession.PORT_ANY);
 
         PublicKey publicKey = new PublicKey();
         publicKey.setFingerprint(fingerprint);
-        publicKey.setEncodedBase64(localKey);
+        publicKey.setAddress(address);
 
         NetworkPeer np = new NetworkPeer(NetworkPeer.Network.I2P.name());
         np.getDid().addPublicKey(publicKey);
@@ -416,7 +417,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             // Launch TaskRunner if testing
             DID seedDID = new DID();
             NetworkPeer np2 = new NetworkPeer(NetworkPeer.Network.I2P.name());
-            np2.getDid().getPublicKey().setEncodedBase64(seedKey);
+            np2.getDid().getPublicKey().setAddress(seedKey);
             seedDID.addPeer(np2);
             taskRunner = new TaskRunner(this, localDID, seedDID, properties);
             taskRunner.start();
@@ -425,7 +426,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             LOG.info("Publishing I2P Network Peer's DID...");
             Envelope e = Envelope.eventFactory(EventMessage.Type.STATUS_DID);
             EventMessage m = (EventMessage) e.getMessage();
-            m.setName(localKey);
+            m.setName(fingerprint);
             m.setMessage(localDID);
             DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
             sensorManager.sendToBus(e);

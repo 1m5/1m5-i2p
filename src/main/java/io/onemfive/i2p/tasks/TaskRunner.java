@@ -40,9 +40,9 @@ public class TaskRunner extends AppThread {
                 && seedDID != null
                 && localDID.getPeer(npName) != null
                 && seedDID.getPeer(npName) != null
-                && localDID.getPeer(npName).getFullAddress() != null
-                && seedDID.getPeer(npName).getFullAddress() != null
-                && localDID.getPeer(npName).getFullAddress().equals(seedDID.getPeer(npName).getFullAddress()));
+                && localDID.getPeer(npName).getAddress() != null
+                && seedDID.getPeer(npName).getAddress() != null
+                && localDID.getPeer(npName).getAddress().equals(seedDID.getPeer(npName).getAddress()));
     }
 
     @Override
