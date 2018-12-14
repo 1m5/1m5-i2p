@@ -177,6 +177,11 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         }
     }
 
+    /**
+     * Incoming
+     * @param e
+     * @return
+     */
     @Override
     public boolean reply(Envelope e) {
         sensorManager.sendToBus(e);
@@ -240,10 +245,13 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             }
         } catch (DataFormatException e) {
             LOG.warning("Invalid datagram received: " + e.getLocalizedMessage());
+            e.printStackTrace();
         } catch (I2PInvalidDatagramException e) {
             LOG.warning("Datagram failed verification: " + e.getLocalizedMessage());
+            e.printStackTrace();
         } catch (Exception e) {
             LOG.severe("Error processing datagram: " + e.getLocalizedMessage());
+            e.printStackTrace();
         }
     }
 
