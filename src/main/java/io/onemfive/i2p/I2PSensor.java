@@ -222,14 +222,17 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         }
 
         try {
+            LOG.info("Loading I2P Datagram...");
             I2PDatagramDissector d = new I2PDatagramDissector();
             d.loadI2PDatagram(msg);
+            LOG.info("I2P Datagram loaded.");
             byte[] payload = d.getPayload();
             String strPayload = new String(payload);
+            LOG.info("Getting sender as I2P Destination...");
             Destination sender = d.getSender();
-            taskRunner.verify(strPayload);
             LOG.info("Received Message:\n    From: " + sender.toBase64() +"\n    Content: " + strPayload);
-            if(!isTest) {
+//            taskRunner.verify(strPayload);
+//            if(!isTest) {
                 Envelope e = Envelope.eventFactory(EventMessage.Type.TEXT);
                 NetworkPeer from = new NetworkPeer(NetworkPeer.Network.I2P.name());
                 from.getDid().getPublicKey().setAddress(sender.toBase64());
@@ -241,17 +244,18 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
                 m.setName(from.getDid().getPublicKey().getFingerprint());
                 m.setMessage(strPayload);
                 DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
+                LOG.info("Sending Event Message to Notification Service...");
                 sensorManager.sendToBus(e);
-            }
+//            }
         } catch (DataFormatException e) {
+            e.printStackTrace();
             LOG.warning("Invalid datagram received: " + e.getLocalizedMessage());
-            e.printStackTrace();
         } catch (I2PInvalidDatagramException e) {
+            e.printStackTrace();
             LOG.warning("Datagram failed verification: " + e.getLocalizedMessage());
-            e.printStackTrace();
         } catch (Exception e) {
-            LOG.severe("Error processing datagram: " + e.getLocalizedMessage());
             e.printStackTrace();
+            LOG.severe("Error processing datagram: " + e.getLocalizedMessage());
         }
     }
 
