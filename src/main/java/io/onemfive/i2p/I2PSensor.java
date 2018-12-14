@@ -403,12 +403,9 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
 
         i2pSession.addMuxedSessionListener(this, I2PSession.PROTO_ANY, I2PSession.PORT_ANY);
 
-        PublicKey publicKey = new PublicKey();
-        publicKey.setFingerprint(fingerprint);
-        publicKey.setAddress(address);
-
         NetworkPeer np = new NetworkPeer(NetworkPeer.Network.I2P.name());
-        np.getDid().addPublicKey(publicKey);
+        np.getDid().getPublicKey().setFingerprint(fingerprint);
+        np.getDid().getPublicKey().setAddress(address);
 
         DID localDID = new DID();
         localDID.addPeer(np);
