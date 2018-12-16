@@ -230,18 +230,20 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             String strPayload = new String(payload);
             LOG.info("Getting sender as I2P Destination...");
             Destination sender = d.getSender();
-            LOG.info("Received Message:\n    From: " + sender.toBase64() +"\n    Content: " + strPayload);
+            String address = sender.toBase64();
+            String fingerprint = sender.getHash().toBase64();
+            LOG.info("Received I2P Message:\n    From: " + address +"\n    Content: " + strPayload);
 //            taskRunner.verify(strPayload);
 //            if(!isTest) {
                 Envelope e = Envelope.eventFactory(EventMessage.Type.TEXT);
                 NetworkPeer from = new NetworkPeer(NetworkPeer.Network.I2P.name());
-                from.getDid().getPublicKey().setAddress(sender.toBase64());
-                from.getDid().getPublicKey().setFingerprint(sender.getHash().toBase64());
+                from.setAddress(address);
+                from.setFingerprint(fingerprint);
                 DID did = new DID();
                 did.addPeer(from);
                 e.setDID(did);
                 EventMessage m = (EventMessage) e.getMessage();
-                m.setName(from.getDid().getPublicKey().getFingerprint());
+                m.setName(fingerprint);
                 m.setMessage(strPayload);
                 DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
                 LOG.info("Sending Event Message to Notification Service...");
@@ -358,14 +360,16 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             LOG.info("Destination key file doesn't exist or isn't readable." + e);
         } catch (I2PSessionException e) {
             // Won't happen, inputStream != null
+            e.printStackTrace();
+            LOG.warning(e.getLocalizedMessage());
         } finally {
-            if (fileReader != null)
+            if (fileReader != null) {
                 try {
                     fileReader.close();
+                } catch (IOException e) {
+                    LOG.warning("Error closing file: " + destinationKeyFile.getAbsolutePath() + ": " + e);
                 }
-                catch (IOException e) {
-                    LOG.warning("Error closing file: <" + destinationKeyFile.getAbsolutePath() + ">" + e);
-                }
+            }
         }
 
         // if the local destination key can't be read or is invalid, create a new one
