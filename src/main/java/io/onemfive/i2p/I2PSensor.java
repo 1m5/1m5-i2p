@@ -444,6 +444,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
             sensorManager.sendToBus(e);
         }
+        logRouterInfo();
     }
 
     @Override
