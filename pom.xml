@@ -39,6 +39,9 @@
 	<profiles>
 		<profile>
 			<id>Development</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
 			<properties>
 				<isTest>true</isTest>
 			</properties>
