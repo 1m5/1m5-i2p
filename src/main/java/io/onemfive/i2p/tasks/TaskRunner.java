@@ -2,11 +2,8 @@ package io.onemfive.i2p.tasks;
 
 import io.onemfive.core.util.AppThread;
 import io.onemfive.data.DID;
-import io.onemfive.data.Envelope;
 import io.onemfive.data.NetworkPeer;
-import io.onemfive.data.util.DLC;
 import io.onemfive.i2p.I2PSensor;
-import io.onemfive.sensors.SensorRequest;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -53,7 +50,7 @@ public class TaskRunner extends AppThread {
         status = Status.Running;
         LOG.info("I2PSensor Task Runner running...");
         while(status == Status.Running) {
-            sensor.logRouterInfo();
+            sensor.checkRouterStats();
             // Now send a message to the seed node to verify it's online
 //            long now = System.currentTimeMillis();
 //            if(!isSeed) {

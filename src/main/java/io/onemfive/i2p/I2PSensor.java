@@ -66,6 +66,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
     private File i2pDir;
     private RouterContext routerContext;
     protected Router router;
+    protected CommSystemFacade.Status i2pRouterStatus;
 
     private String i2pBaseDir;
     protected String i2pAppDir;
@@ -770,6 +771,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             case DISCONNECTED:
                 statusText = "Disconnected from I2P Network.";
                 updateStatus(SensorStatus.NETWORK_STOPPED);
+                restart();
                 break;
             case DIFFERENT:
                 statusText = "Symmetric NAT: Error connecting to I2P Network.";
@@ -800,8 +802,14 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         return routerContext.commSystem().getStatus();
     }
 
-    public void logRouterInfo() {
-        LOG.info("I2P Statistics:\n    Router Status: "+getRouterStatus().name());
+    public void checkRouterStats() {
+        if(i2pRouterStatus==null) {
+            i2pRouterStatus = getRouterStatus();
+        } else if(getRouterStatus() != i2pRouterStatus) {
+            routerStatusChanged();
+            i2pRouterStatus = getRouterStatus();
+        }
+        LOG.info("I2P Statistics:\n\tRouter Status: "+getRouterStatus().name());
     }
 
     /**
