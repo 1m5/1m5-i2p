@@ -785,6 +785,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
                 break;
             case REJECT_UNSOLICITED:
                 statusText = "Firewalled. Unable to connect to I2P network.";
+                // TODO: Change I2P Port
                 updateStatus(SensorStatus.NETWORK_BLOCKED);
                 break;
             default: {
