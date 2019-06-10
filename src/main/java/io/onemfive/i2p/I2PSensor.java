@@ -43,8 +43,6 @@ import java.util.logging.Logger;
  */
 public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
 
-    private static final String seedKey = "J8a-3~hlNJVxattRbTuROLXffUss1jVy9Ul8b0CnBIxh5ihu5oZH-CeXPybWlF5vG-3st9p2d6B6iP3tJ0vbJmzu5PlSZTF7Lt3Q-~31C9Hv5jwVj6xWke7dHTyzy2cnLBK2ziG2jx~i-WSePVRmEKx6S4XTucswvzR0Bqba0n3YgWp4FzAay1Yt2mY1Cnalnv3nveNDIecgEYf~j-RkHVCoeF0U4-N82452p4CT6ttJ7gIAMt6ThbJ97drsmBLRQK9hfiDDhg5YjlA0ZGi3F8KYGzhrR7w-O974aN3zCUOIKj2eZc31f8WHeBkEnD95yN119Z6a8G3VsNuoy6lpH5hlOKHUzqPL9CALbKPpGsC~dREaV6Y9BDIkC0iGkiV4TzcuBnsMGFQL4otVopt-vtPjd7cL9dh9kgpNM51HiT3uNeS9X2xJZnPCU2JUE5lejWA4NXXCPeGGIZQ-0UTGeR3jndYk5wEslbMmoT65nRPIz-cnwudcjlETYv0DvkGDAAAA";
-
     /**
      * 1 = ElGamal-2048 / DSA-1024
      * 2 = ECDH-256 / ECDSA-256
@@ -438,11 +436,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
             sensorManager.sendToBus(e);
         }
-        DID seedDID = new DID();
-        NetworkPeer np2 = new NetworkPeer(NetworkPeer.Network.I2P.name());
-        np2.getDid().getPublicKey().setAddress(seedKey);
-        seedDID.addPeer(np2);
-        taskRunner = new TaskRunner(this, localDID, seedDID, properties);
+        taskRunner = new TaskRunner(this, properties);
         taskRunner.start();
     }
 

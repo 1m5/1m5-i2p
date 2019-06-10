@@ -24,25 +24,11 @@ public class TaskRunner extends AppThread {
 
     private Status status = Status.Shutdown;
     private I2PSensor sensor;
-    private boolean isSeed = false;
-    private DID seedDID;
-    private DID localDID;
     private Properties properties;
-    private Map<String,Long> checks = new HashMap<>();
 
-    public TaskRunner(I2PSensor sensor, DID localDID, DID seedDID, Properties properties) {
+    public TaskRunner(I2PSensor sensor, Properties properties) {
         this.sensor = sensor;
-        this.localDID = localDID;
-        this.seedDID = seedDID;
         this.properties = properties;
-        String npName = NetworkPeer.Network.I2P.name();
-        isSeed = (localDID != null
-                && seedDID != null
-                && localDID.getPeer(npName) != null
-                && seedDID.getPeer(npName) != null
-                && localDID.getPeer(npName).getAddress() != null
-                && seedDID.getPeer(npName).getAddress() != null
-                && localDID.getPeer(npName).getAddress().equals(seedDID.getPeer(npName).getAddress()));
     }
 
     @Override
@@ -51,22 +37,6 @@ public class TaskRunner extends AppThread {
         LOG.info("I2PSensor Task Runner running...");
         while(status == Status.Running) {
             sensor.checkRouterStats();
-            // Now send a message to the seed node to verify it's online
-//            long now = System.currentTimeMillis();
-//            if(!isSeed) {
-//                String connectedVerifier = "1M5-ConnectionVerify:" + now;
-//                checks.put(connectedVerifier, now);
-//                LOG.info("Sending: " + connectedVerifier);
-//                LOG.info("  To: "+seedDID.getPeer(NetworkPeer.Network.I2P.name()).getAddress());
-//                LOG.info("  From: "+localDID.getPeer(NetworkPeer.Network.I2P.name()).getAddress());
-//                SensorRequest r = new SensorRequest();
-//                r.to = seedDID;
-//                r.from = localDID;
-//                Envelope e = Envelope.documentFactory();
-//                DLC.addData(SensorRequest.class, r, e);
-//                DLC.addContent(connectedVerifier, e);
-//                sensor.send(e);
-//            }
             try {
                 synchronized (this) {
                     this.wait(timeBetweenRunsMinutes * 60 * 1000);
@@ -76,16 +46,6 @@ public class TaskRunner extends AppThread {
         }
         LOG.info("Task Runner Stopped.");
         status = Status.Shutdown;
-    }
-
-    public void verify(String code) {
-        Long begin = checks.get(code);
-        if(begin == null)
-            LOG.info("Message received ("+code+") not a connection verifier. Ignoring.");
-        else {
-            LOG.info("Received connection verifier " + code + " response in " + ((System.currentTimeMillis() - begin)/1000) + " seconds.");
-            checks.remove(code);
-        }
     }
 
     public void shutdown() {
