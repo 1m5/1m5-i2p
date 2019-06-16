@@ -43,8 +43,6 @@ import java.util.logging.Logger;
  */
 public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
 
-    private static final String seedKey = "J8a-3~hlNJVxattRbTuROLXffUss1jVy9Ul8b0CnBIxh5ihu5oZH-CeXPybWlF5vG-3st9p2d6B6iP3tJ0vbJmzu5PlSZTF7Lt3Q-~31C9Hv5jwVj6xWke7dHTyzy2cnLBK2ziG2jx~i-WSePVRmEKx6S4XTucswvzR0Bqba0n3YgWp4FzAay1Yt2mY1Cnalnv3nveNDIecgEYf~j-RkHVCoeF0U4-N82452p4CT6ttJ7gIAMt6ThbJ97drsmBLRQK9hfiDDhg5YjlA0ZGi3F8KYGzhrR7w-O974aN3zCUOIKj2eZc31f8WHeBkEnD95yN119Z6a8G3VsNuoy6lpH5hlOKHUzqPL9CALbKPpGsC~dREaV6Y9BDIkC0iGkiV4TzcuBnsMGFQL4otVopt-vtPjd7cL9dh9kgpNM51HiT3uNeS9X2xJZnPCU2JUE5lejWA4NXXCPeGGIZQ-0UTGeR3jndYk5wEslbMmoT65nRPIz-cnwudcjlETYv0DvkGDAAAA";
-
     /**
      * 1 = ElGamal-2048 / DSA-1024
      * 2 = ECDH-256 / ECDSA-256
@@ -66,6 +64,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
     private File i2pDir;
     private RouterContext routerContext;
     protected Router router;
+    protected CommSystemFacade.Status i2pRouterStatus;
 
     private String i2pBaseDir;
     protected String i2pAppDir;
@@ -437,11 +436,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
             sensorManager.sendToBus(e);
         }
-        DID seedDID = new DID();
-        NetworkPeer np2 = new NetworkPeer(NetworkPeer.Network.I2P.name());
-        np2.getDid().getPublicKey().setAddress(seedKey);
-        seedDID.addPeer(np2);
-        taskRunner = new TaskRunner(this, localDID, seedDID, properties);
+        taskRunner = new TaskRunner(this, properties);
         taskRunner.start();
     }
 
@@ -454,8 +449,8 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         // I2P Sensor Starting
         LOG.info("Loading I2P properties...");
         properties = p;
-        // Set up I2P Directories within 1M5 base directory - Base MUST get created or exit
-        i2pBaseDir = properties.getProperty("1m5.dir.base") + "/i2p";
+        // Set up I2P Directories within sensors directory
+        i2pBaseDir = properties.getProperty("1m5.dir.sensors") + "/i2p";
         i2pDir = new File(i2pBaseDir);
         if(!i2pDir.exists())
             if(!i2pDir.mkdir()) {
@@ -464,6 +459,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             }
         System.setProperty("i2p.dir.base",i2pBaseDir);
         properties.setProperty("i2p.dir.base",i2pBaseDir);
+        properties.setProperty("1m5.dir.sensors.i2p",i2pBaseDir);
         // Config Directory
         String i2pConfigDir = i2pBaseDir + "/config";
         File i2pConfigFolder = new File(i2pConfigDir);
@@ -770,6 +766,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             case DISCONNECTED:
                 statusText = "Disconnected from I2P Network.";
                 updateStatus(SensorStatus.NETWORK_STOPPED);
+                restart();
                 break;
             case DIFFERENT:
                 statusText = "Symmetric NAT: Error connecting to I2P Network.";
@@ -785,6 +782,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
                 break;
             case REJECT_UNSOLICITED:
                 statusText = "Firewalled. Unable to connect to I2P network.";
+                // TODO: Change I2P Port
                 updateStatus(SensorStatus.NETWORK_BLOCKED);
                 break;
             default: {
@@ -799,8 +797,14 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         return routerContext.commSystem().getStatus();
     }
 
-    public void logRouterInfo() {
-        LOG.info("I2P Statistics:\n    Router Status: "+getRouterStatus().name());
+    public void checkRouterStats() {
+        if(i2pRouterStatus==null) {
+            i2pRouterStatus = getRouterStatus();
+        } else if(getRouterStatus() != i2pRouterStatus) {
+            routerStatusChanged();
+            i2pRouterStatus = getRouterStatus();
+        }
+        LOG.info("I2P Statistics:\n\tRouter Status: "+getRouterStatus().name());
     }
 
     /**
