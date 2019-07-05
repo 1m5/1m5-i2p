@@ -12,6 +12,7 @@
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<java.version>1.7</java.version>
+		<i2p.version>0.9.41</i2p.version>
 	</properties>
 
 	<name>1m5-i2p</name>
@@ -77,22 +78,22 @@
         <dependency>
             <groupId>net.i2p</groupId>
             <artifactId>i2p</artifactId>
-            <version>0.9.37</version>
+            <version>${i2p.version}</version>
         </dependency>
 		<dependency>
 			<groupId>net.i2p</groupId>
 			<artifactId>router</artifactId>
-			<version>0.9.37</version>
+			<version>${i2p.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>net.i2p.client</groupId>
 			<artifactId>streaming</artifactId>
-			<version>0.9.37</version>
+			<version>${i2p.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>net.i2p.client</groupId>
 			<artifactId>mstreaming</artifactId>
-			<version>0.9.37</version>
+			<version>${i2p.version}</version>
 		</dependency>
 		<!-- Test -->
 		<dependency>
