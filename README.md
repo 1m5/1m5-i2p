@@ -32,4 +32,7 @@ sudo apt autoclean
 ### 0.6.2
 - upgraded to 0.9.41
 - updated reseed and ssl certificates
-- updated seed peers
+- added host.txt for reference
+- added blocklist.txt for reference
+
+Note: I believe built-in-peers.txt is no longer used; couldn't find an update
