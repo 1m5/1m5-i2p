@@ -3,9 +3,9 @@ package io.onemfive.i2p;
 import io.onemfive.core.Config;
 import io.onemfive.core.ServiceRequest;
 import io.onemfive.core.notification.NotificationService;
+import io.onemfive.core.util.tasks.TaskRunner;
 import io.onemfive.data.*;
 import io.onemfive.data.util.DLC;
-import io.onemfive.i2p.tasks.TaskRunner;
 import io.onemfive.sensors.*;
 import net.i2p.I2PException;
 import net.i2p.client.*;
@@ -71,7 +71,6 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
 
     private I2PSession i2pSession;
     private I2PSocketManager socketManager;
-    private TaskRunner taskRunner;
 
     // I2CP parameters allowed in the config file
     // Undefined parameters use the I2CP defaults
@@ -436,8 +435,13 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
             sensorManager.sendToBus(e);
         }
-        taskRunner = new TaskRunner(this, properties);
-        taskRunner.start();
+        if(taskRunner==null) {
+            taskRunner = new TaskRunner();
+        }
+        taskRunner.addTask(new CheckRouterStats("I2PStatusCheck", taskRunner, this));
+        if(taskRunner.getStatus() != TaskRunner.Status.Running) {
+            new Thread(taskRunner).start();
+        }
     }
 
     @Override
