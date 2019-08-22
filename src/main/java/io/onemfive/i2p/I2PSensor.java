@@ -418,20 +418,16 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         i2pSession.addMuxedSessionListener(this, I2PSession.PROTO_ANY, I2PSession.PORT_ANY);
 
         NetworkPeer np = new NetworkPeer(NetworkPeer.Network.I2P.name());
-        np.getDid().getPublicKey().setFingerprint(fingerprint);
-        np.getDid().getPublicKey().setAddress(address);
-
-        DID localDID = new DID();
-        localDID.addPeer(np);
-
+        np.setAddress(address);
+        np.setFingerprint(fingerprint);
 
         if(!isTest) {
             // Publish local I2P address
-            LOG.info("Publishing I2P Network Peer's DID...");
+            LOG.info("Publishing local I2P Network Peer key...");
             Envelope e = Envelope.eventFactory(EventMessage.Type.STATUS_DID);
             EventMessage m = (EventMessage) e.getMessage();
             m.setName(fingerprint);
-            m.setMessage(localDID);
+            m.setMessage(np);
             DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
             sensorManager.sendToBus(e);
         }
