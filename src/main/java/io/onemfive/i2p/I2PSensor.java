@@ -171,6 +171,9 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             LOG.warning(errMsg);
             request.exception = e;
             request.errorMessage = errMsg;
+            if("Already closed".equals(e.getLocalizedMessage())) {
+                updateStatus(SensorStatus.NETWORK_STOPPED);
+            }
             return false;
         }
     }
