@@ -172,7 +172,8 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             request.exception = e;
             request.errorMessage = errMsg;
             if("Already closed".equals(e.getLocalizedMessage())) {
-                updateStatus(SensorStatus.NETWORK_STOPPED);
+                LOG.info("I2P Connection closed. Could be no internet access or getting blocked. Assume blocked for re-route. If not blocked, I2P will automatically re-establish connection when network access returns.");
+                updateStatus(SensorStatus.NETWORK_BLOCKED);
             }
             return false;
         }
