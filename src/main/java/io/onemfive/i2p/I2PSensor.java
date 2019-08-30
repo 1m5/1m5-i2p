@@ -335,6 +335,13 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         routerStatusChanged();
     }
 
+    public File getDirectory() {
+        if(i2pDir==null) {
+            i2pDir = new File(i2pBaseDir);
+        }
+        return i2pDir;
+    }
+
     /**
      * Sets up a {@link I2PSession}, using the I2P destination stored on disk or creating a new I2P
      * destination if no key file exists.
@@ -456,11 +463,12 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         // Set up I2P Directories within sensors directory
         i2pBaseDir = properties.getProperty("1m5.dir.sensors") + "/i2p";
         i2pDir = new File(i2pBaseDir);
-        if(!i2pDir.exists())
-            if(!i2pDir.mkdir()) {
-                LOG.severe("Unable to create I2P base directory: "+i2pBaseDir+"; exiting...");
+        if(!i2pDir.exists()) {
+            if (!i2pDir.mkdir()) {
+                LOG.severe("Unable to create I2P base directory: " + i2pBaseDir + "; exiting...");
                 return false;
             }
+        }
         System.setProperty("i2p.dir.base",i2pBaseDir);
         properties.setProperty("i2p.dir.base",i2pBaseDir);
         properties.setProperty("1m5.dir.sensors.i2p",i2pBaseDir);
