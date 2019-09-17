@@ -718,91 +718,90 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
     }
 
     private void routerStatusChanged() {
-        String statusText;
+
         switch (getRouterStatus()) {
             case UNKNOWN:
-                statusText = "Testing I2P Network...";
+                LOG.info("Testing I2P Network...");
                 updateStatus(SensorStatus.NETWORK_CONNECTING);
                 break;
             case IPV4_DISABLED_IPV6_UNKNOWN:
-                statusText = "IPV4 Disabled but IPV6 Testing...";
+                LOG.info("IPV4 Disabled but IPV6 Testing...");
                 updateStatus(SensorStatus.NETWORK_CONNECTING);
                 break;
             case IPV4_FIREWALLED_IPV6_UNKNOWN:
-                statusText = "IPV4 Firewalled but IPV6 Testing...";
+                LOG.info("IPV4 Firewalled but IPV6 Testing...");
                 updateStatus(SensorStatus.NETWORK_CONNECTING);
                 break;
             case IPV4_SNAT_IPV6_UNKNOWN:
-                statusText = "IPV4 SNAT but IPV6 Testing...";
+                LOG.info("IPV4 SNAT but IPV6 Testing...");
                 updateStatus(SensorStatus.NETWORK_CONNECTING);
                 break;
             case IPV4_UNKNOWN_IPV6_FIREWALLED:
-                statusText = "IPV6 Firewalled but IPV4 Testing...";
+                LOG.info("IPV6 Firewalled but IPV4 Testing...");
                 updateStatus(SensorStatus.NETWORK_CONNECTING);
                 break;
             case OK:
-                statusText = "Connected to I2P Network.";
+                LOG.info("Connected to I2P Network.");
                 restartAttempts = 0; // Reset restart attempts
                 updateStatus(SensorStatus.NETWORK_CONNECTED);
                 break;
             case IPV4_DISABLED_IPV6_OK:
-                statusText = "IPV4 Disabled but IPV6 OK: Connected to I2P Network.";
+                LOG.info("IPV4 Disabled but IPV6 OK: Connected to I2P Network.");
                 restartAttempts = 0; // Reset restart attempts
                 updateStatus(SensorStatus.NETWORK_CONNECTED);
                 break;
             case IPV4_FIREWALLED_IPV6_OK:
-                statusText = "IPV4 Firewalled but IPV6 OK: Connected to I2P Network.";
+                LOG.info("IPV4 Firewalled but IPV6 OK: Connected to I2P Network.");
                 restartAttempts = 0; // Reset restart attempts
                 updateStatus(SensorStatus.NETWORK_CONNECTED);
                 break;
             case IPV4_SNAT_IPV6_OK:
-                statusText = "IPV4 SNAT but IPV6 OK: Connected to I2P Network.";
+                LOG.info("IPV4 SNAT but IPV6 OK: Connected to I2P Network.");
                 restartAttempts = 0; // Reset restart attempts
                 updateStatus(SensorStatus.NETWORK_CONNECTED);
                 break;
             case IPV4_UNKNOWN_IPV6_OK:
-                statusText = "IPV4 Testing but IPV6 OK: Connected to I2P Network.";
+                LOG.info("IPV4 Testing but IPV6 OK: Connected to I2P Network.");
                 restartAttempts = 0; // Reset restart attempts
                 updateStatus(SensorStatus.NETWORK_CONNECTED);
                 break;
             case IPV4_OK_IPV6_FIREWALLED:
-                statusText = "IPV6 Firewalled but IPV4 OK: Connected to I2P Network.";
+                LOG.info("IPV6 Firewalled but IPV4 OK: Connected to I2P Network.");
                 restartAttempts = 0; // Reset restart attempts
                 updateStatus(SensorStatus.NETWORK_CONNECTED);
                 break;
             case IPV4_OK_IPV6_UNKNOWN:
-                statusText = "IPV6 Testing but IPV4 OK: Connected to I2P Network.";
+                LOG.info("IPV6 Testing but IPV4 OK: Connected to I2P Network.");
                 restartAttempts = 0; // Reset restart attempts
                 updateStatus(SensorStatus.NETWORK_CONNECTED);
                 break;
             case DISCONNECTED:
-                statusText = "Disconnected from I2P Network.";
+                LOG.info("Disconnected from I2P Network.");
                 updateStatus(SensorStatus.NETWORK_STOPPED);
                 restart();
                 break;
             case DIFFERENT:
-                statusText = "Symmetric NAT: Error connecting to I2P Network.";
+                LOG.warning("Symmetric NAT: Error connecting to I2P Network.");
                 updateStatus(SensorStatus.NETWORK_ERROR);
                 break;
             case HOSED:
-                statusText = "Unable to open UDP port for I2P.";
+                LOG.warning("Unable to open UDP port for I2P.");
                 updateStatus(SensorStatus.NETWORK_PORT_CONFLICT);
                 break;
             case IPV4_DISABLED_IPV6_FIREWALLED:
-                statusText = "IPV4 Disabled and IPV6 Firewalled. Unable to connect to I2P network.";
+                LOG.warning("IPV4 Disabled and IPV6 Firewalled. Unable to connect to I2P network.");
                 updateStatus(SensorStatus.NETWORK_BLOCKED);
                 break;
             case REJECT_UNSOLICITED:
-                statusText = "Firewalled. Unable to connect to I2P network.";
+                LOG.warning("Firewalled. Unable to connect to I2P network.");
                 // TODO: Change I2P Port
                 updateStatus(SensorStatus.NETWORK_BLOCKED);
                 break;
             default: {
-                statusText = "Not connected to I2P Network.";
+                LOG.warning("Not connected to I2P Network.");
                 updateStatus(SensorStatus.NETWORK_STOPPED);
             }
         }
-        LOG.info(statusText);
     }
 
     private CommSystemFacade.Status getRouterStatus() {
