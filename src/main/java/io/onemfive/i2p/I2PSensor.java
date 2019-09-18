@@ -347,8 +347,8 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
      * destination if no key file exists.
      */
     private void initializeSession() throws I2PSessionException {
-        LOG.info("Initializing I2P Session....");
-        updateStatus(SensorStatus.INITIALIZING);
+        LOG.info("Initializing I2P Session, Starting I2P Sensor....");
+        updateStatus(SensorStatus.STARTING);
         Properties sessionProperties = new Properties();
         // set tunnel names
         sessionProperties.setProperty("inbound.nickname", "I2PSensor");
@@ -453,9 +453,9 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
 
     @Override
     public boolean start(Properties p) {
-        LOG.info("Starting I2P Sensor...");
+        LOG.info("Initializing I2P Sensor...");
         properties = p;
-        updateStatus(SensorStatus.STARTING);
+        updateStatus(SensorStatus.INITIALIZING);
         isTest = "true".equals(properties.getProperty("1m5.sensors.i2p.isTest"));
         // I2P Sensor Starting
         LOG.info("Loading I2P properties...");
@@ -584,7 +584,6 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             // TODO: Replace with wait time based on I2P router status to lower start up time
             startSignal.await(3, TimeUnit.MINUTES);
             LOG.info("I2P Router should be warmed up, ready to initialize session....");
-            updateStatus(SensorStatus.STARTING);
             initializeSession();
             doneSignal.countDown();
         } catch (InterruptedException e) {
@@ -811,9 +810,10 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
     public void checkRouterStats() {
         if(i2pRouterStatus==null) {
             i2pRouterStatus = getRouterStatus();
-        } else if(getRouterStatus() != i2pRouterStatus) {
             routerStatusChanged();
+        } else if(getRouterStatus() != i2pRouterStatus) {
             i2pRouterStatus = getRouterStatus();
+            routerStatusChanged();
         }
         LOG.info("I2P Statistics:\n\tRouter Status: "+getRouterStatus().name());
     }
