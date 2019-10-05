@@ -45,18 +45,21 @@
 			</activation>
 			<properties>
 				<isTest>true</isTest>
+				<hidden>false</hidden>
 			</properties>
 		</profile>
 		<profile>
 			<id>QA</id>
 			<properties>
 				<isTest>false</isTest>
+				<hidden>false</hidden>
 			</properties>
 		</profile>
 		<profile>
 			<id>Production</id>
 			<properties>
 				<isTest>false</isTest>
+				<hidden>false</hidden>
 			</properties>
 		</profile>
 	</profiles>
