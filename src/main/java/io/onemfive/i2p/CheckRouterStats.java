@@ -9,6 +9,7 @@ public class CheckRouterStats extends SensorTask {
 
     public CheckRouterStats(String taskName, TaskRunner taskRunner, I2PSensor sensor) {
         super(taskName, taskRunner);
+        super.periodicity = 60 * 1000L; // Every 60 seconds
         this.sensor = sensor;
     }
 
