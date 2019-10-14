@@ -394,10 +394,10 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
                 I2PClientFactory.createClient().createDestination(arrayStream);
                 byte[] localDestinationKey = arrayStream.toByteArray();
 
-                LOG.finer("Creating I2P Socket Manager...");
+                LOG.info("Creating I2P Socket Manager...");
                 ByteArrayInputStream inputStream = new ByteArrayInputStream(localDestinationKey);
                 socketManager = I2PSocketManagerFactory.createDisconnectedManager(inputStream, null, 0, sessionProperties);
-                LOG.finer("I2P Socket Manager created.");
+                LOG.info("I2P Socket Manager created.");
 
                 destinationKeyFile = new SecureFile(destinationKeyFile.getAbsolutePath());
                 if (destinationKeyFile.exists()) {
