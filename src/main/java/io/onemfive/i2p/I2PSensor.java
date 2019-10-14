@@ -394,18 +394,19 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
                 I2PClientFactory.createClient().createDestination(arrayStream);
                 byte[] localDestinationKey = arrayStream.toByteArray();
 
+                LOG.finer("Creating I2P Socket Manager...");
                 ByteArrayInputStream inputStream = new ByteArrayInputStream(localDestinationKey);
                 socketManager = I2PSocketManagerFactory.createDisconnectedManager(inputStream, null, 0, sessionProperties);
+                LOG.finer("I2P Socket Manager created.");
 
                 destinationKeyFile = new SecureFile(destinationKeyFile.getAbsolutePath());
                 if (destinationKeyFile.exists()) {
                     File oldKeyFile = new File(destinationKeyFile.getPath() + "_backup");
                     if (!destinationKeyFile.renameTo(oldKeyFile))
                         LOG.warning("Cannot rename destination key file <" + destinationKeyFile.getAbsolutePath() + "> to <" + oldKeyFile.getAbsolutePath() + ">");
-                }
-                else
-                if (!destinationKeyFile.createNewFile())
+                } else if (!destinationKeyFile.createNewFile()) {
                     LOG.warning("Cannot create destination key file: <" + destinationKeyFile.getAbsolutePath() + ">");
+                }
 
                 BufferedWriter fileWriter = new BufferedWriter(new OutputStreamWriter(new SecureFileOutputStream(destinationKeyFile)));
                 try {
