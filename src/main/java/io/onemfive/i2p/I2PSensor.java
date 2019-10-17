@@ -424,7 +424,12 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
 
         i2pSession = socketManager.getSession();
         // Throws I2PSessionException if the connection fails
+        LOG.info("I2P Session connecting...");
+        long start = System.currentTimeMillis();
         i2pSession.connect();
+        long end = System.currentTimeMillis();
+        long durationMs = end - start;
+        LOG.info("I2P Session connected. Took "+(durationMs/1000)+" seconds.");
 
         Destination localDestination = i2pSession.getMyDestination();
         String address = localDestination.toBase64();
