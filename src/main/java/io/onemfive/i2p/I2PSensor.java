@@ -593,7 +593,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             updateStatus(SensorStatus.WAITING);
             LOG.info("Waiting 1 minute for I2P Router to warm up...");
             // TODO: Replace with wait time based on I2P router status to lower start up time
-            startSignal.await(1, TimeUnit.MINUTES);
+            startSignal.await(3, TimeUnit.MINUTES);
             LOG.info("I2P Router should be warmed up. Initializing session...");
             initializeSession();
             if(routerContext.commSystem().isInStrictCountry()) {
