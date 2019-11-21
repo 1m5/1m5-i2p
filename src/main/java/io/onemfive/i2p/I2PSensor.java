@@ -3,9 +3,9 @@ package io.onemfive.i2p;
 import io.onemfive.core.Config;
 import io.onemfive.core.ServiceRequest;
 import io.onemfive.core.notification.NotificationService;
+import io.onemfive.core.util.tasks.TaskRunner;
 import io.onemfive.data.*;
 import io.onemfive.data.util.DLC;
-import io.onemfive.i2p.tasks.TaskRunner;
 import io.onemfive.sensors.*;
 import net.i2p.I2PException;
 import net.i2p.client.*;
@@ -18,6 +18,7 @@ import net.i2p.data.Base64;
 import net.i2p.data.DataFormatException;
 import net.i2p.data.DataHelper;
 import net.i2p.data.Destination;
+import net.i2p.data.router.RouterInfo;
 import net.i2p.router.CommSystemFacade;
 import net.i2p.router.Router;
 import net.i2p.router.RouterContext;
@@ -71,7 +72,6 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
 
     private I2PSession i2pSession;
     private I2PSocketManager socketManager;
-    private TaskRunner taskRunner;
 
     // I2CP parameters allowed in the config file
     // Undefined parameters use the I2CP defaults
@@ -88,6 +88,10 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             "outbound.backupQuantity",
     });
 
+    private Long startTimeBlockedMs = 0L;
+    private static final Long BLOCK_TIME_UNTIL_RESTART = 3 * 60 * 1000L; // 4 minutes
+    private Integer restartAttempts = 0;
+    private static final Integer RESTART_ATTEMPTS_UNTIL_HARD_RESTART = 3;
     private boolean isTest = false;
 
     public I2PSensor() {super();}
@@ -172,6 +176,10 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             LOG.warning(errMsg);
             request.exception = e;
             request.errorMessage = errMsg;
+            if("Already closed".equals(e.getLocalizedMessage())) {
+                LOG.info("I2P Connection closed. Could be no internet access or getting blocked. Assume blocked for re-route. If not blocked, I2P will automatically re-establish connection when network access returns.");
+                updateStatus(SensorStatus.NETWORK_BLOCKED);
+            }
             return false;
         }
     }
@@ -303,7 +311,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
     @Override
     public void reportAbuse(I2PSession i2PSession, int severity) {
         LOG.warning("I2P Session reporting abuse. Severity="+severity);
-        routerStatusChanged();
+        reportRouterStatus();
     }
 
     /**
@@ -315,7 +323,7 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
     @Override
     public void disconnected(I2PSession session) {
         LOG.warning("I2P Session reporting disconnection.");
-        routerStatusChanged();
+        reportRouterStatus();
     }
 
     /**
@@ -329,7 +337,14 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
     @Override
     public void errorOccurred(I2PSession session, String message, Throwable throwable) {
         LOG.severe("Router says: "+message+": "+throwable.getLocalizedMessage());
-        routerStatusChanged();
+        reportRouterStatus();
+    }
+
+    public File getDirectory() {
+        if(i2pDir==null) {
+            i2pDir = new File(i2pBaseDir);
+        }
+        return i2pDir;
     }
 
     /**
@@ -337,8 +352,8 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
      * destination if no key file exists.
      */
     private void initializeSession() throws I2PSessionException {
-        LOG.info("Initializing I2P Session....");
-        updateStatus(SensorStatus.INITIALIZING);
+        LOG.info("Initializing I2P Session, Starting I2P Sensor....");
+        updateStatus(SensorStatus.STARTING);
         Properties sessionProperties = new Properties();
         // set tunnel names
         sessionProperties.setProperty("inbound.nickname", "I2PSensor");
@@ -379,18 +394,19 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
                 I2PClientFactory.createClient().createDestination(arrayStream);
                 byte[] localDestinationKey = arrayStream.toByteArray();
 
+                LOG.info("Creating I2P Socket Manager...");
                 ByteArrayInputStream inputStream = new ByteArrayInputStream(localDestinationKey);
                 socketManager = I2PSocketManagerFactory.createDisconnectedManager(inputStream, null, 0, sessionProperties);
+                LOG.info("I2P Socket Manager created.");
 
                 destinationKeyFile = new SecureFile(destinationKeyFile.getAbsolutePath());
                 if (destinationKeyFile.exists()) {
                     File oldKeyFile = new File(destinationKeyFile.getPath() + "_backup");
                     if (!destinationKeyFile.renameTo(oldKeyFile))
                         LOG.warning("Cannot rename destination key file <" + destinationKeyFile.getAbsolutePath() + "> to <" + oldKeyFile.getAbsolutePath() + ">");
-                }
-                else
-                if (!destinationKeyFile.createNewFile())
+                } else if (!destinationKeyFile.createNewFile()) {
                     LOG.warning("Cannot create destination key file: <" + destinationKeyFile.getAbsolutePath() + ">");
+                }
 
                 BufferedWriter fileWriter = new BufferedWriter(new OutputStreamWriter(new SecureFileOutputStream(destinationKeyFile)));
                 try {
@@ -408,7 +424,12 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
 
         i2pSession = socketManager.getSession();
         // Throws I2PSessionException if the connection fails
+        LOG.info("I2P Session connecting...");
+        long start = System.currentTimeMillis();
         i2pSession.connect();
+        long end = System.currentTimeMillis();
+        long durationMs = end - start;
+        LOG.info("I2P Session connected. Took "+(durationMs/1000)+" seconds.");
 
         Destination localDestination = i2pSession.getMyDestination();
         String address = localDestination.toBase64();
@@ -419,32 +440,33 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         i2pSession.addMuxedSessionListener(this, I2PSession.PROTO_ANY, I2PSession.PORT_ANY);
 
         NetworkPeer np = new NetworkPeer(NetworkPeer.Network.I2P.name());
-        np.getDid().getPublicKey().setFingerprint(fingerprint);
-        np.getDid().getPublicKey().setAddress(address);
-
-        DID localDID = new DID();
-        localDID.addPeer(np);
-
+        np.setAddress(address);
+        np.setFingerprint(fingerprint);
 
         if(!isTest) {
             // Publish local I2P address
-            LOG.info("Publishing I2P Network Peer's DID...");
+            LOG.info("Publishing local I2P Network Peer key...");
             Envelope e = Envelope.eventFactory(EventMessage.Type.STATUS_DID);
             EventMessage m = (EventMessage) e.getMessage();
             m.setName(fingerprint);
-            m.setMessage(localDID);
+            m.setMessage(np);
             DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
             sensorManager.sendToBus(e);
         }
-        taskRunner = new TaskRunner(this, properties);
-        taskRunner.start();
+        if(taskRunner==null) {
+            taskRunner = new TaskRunner();
+        }
+        taskRunner.addTask(new CheckRouterStats("I2PStatusCheck", taskRunner, this));
+        if(taskRunner.getStatus() != TaskRunner.Status.Running) {
+            new Thread(taskRunner).start();
+        }
     }
 
     @Override
     public boolean start(Properties p) {
-        LOG.info("Starting I2P Sensor...");
+        LOG.info("Initializing I2P Sensor...");
         properties = p;
-        updateStatus(SensorStatus.STARTING);
+        updateStatus(SensorStatus.INITIALIZING);
         isTest = "true".equals(properties.getProperty("1m5.sensors.i2p.isTest"));
         // I2P Sensor Starting
         LOG.info("Loading I2P properties...");
@@ -452,11 +474,12 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         // Set up I2P Directories within sensors directory
         i2pBaseDir = properties.getProperty("1m5.dir.sensors") + "/i2p";
         i2pDir = new File(i2pBaseDir);
-        if(!i2pDir.exists())
-            if(!i2pDir.mkdir()) {
-                LOG.severe("Unable to create I2P base directory: "+i2pBaseDir+"; exiting...");
+        if(!i2pDir.exists()) {
+            if (!i2pDir.mkdir()) {
+                LOG.severe("Unable to create I2P base directory: " + i2pBaseDir + "; exiting...");
                 return false;
             }
+        }
         System.setProperty("i2p.dir.base",i2pBaseDir);
         properties.setProperty("i2p.dir.base",i2pBaseDir);
         properties.setProperty("1m5.dir.sensors.i2p",i2pBaseDir);
@@ -571,9 +594,14 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             LOG.info("Waiting 3 minutes for I2P Router to warm up...");
             // TODO: Replace with wait time based on I2P router status to lower start up time
             startSignal.await(3, TimeUnit.MINUTES);
-            LOG.info("I2P Router should be warmed up, ready to initialize session....");
-            updateStatus(SensorStatus.STARTING);
+            LOG.info("I2P Router should be warmed up. Initializing session...");
             initializeSession();
+            if(routerContext.commSystem().isInStrictCountry()) {
+                LOG.warning("This peer is in a 'strict' country defined by I2P.");
+            }
+            if(routerContext.router().isHidden()) {
+                LOG.warning("Router was placed in Hidden mode. 1M5 setting for hidden mode: "+properties.getProperty("hidden"));
+            }
             doneSignal.countDown();
         } catch (InterruptedException e) {
             LOG.warning("Start interrupted, exiting");
@@ -602,19 +630,30 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
 
     @Override
     public boolean restart() {
+        if(router==null) {
+            router = routerContext.router();
+        }
         if(router != null) {
-            LOG.info("Restarting I2P Router...");
-            router.restart();
-            LOG.info("I2P Router restarted.");
+            if(restartAttempts.equals(RESTART_ATTEMPTS_UNTIL_HARD_RESTART)) {
+                LOG.info("Full restart of I2P Router...");
+                if(!shutdown()) {
+                    LOG.warning("Issues shutting down I2P Router. Will attempt to start regardless...");
+                }
+                if(!start(properties)) {
+                    LOG.warning("Issues starting I2P Router.");
+                    return false;
+                } else {
+                    LOG.info("Hard restart of I2P Router completed.");
+                }
+            } else {
+                LOG.info("Soft restart of I2P Router...");
+                updateStatus(SensorStatus.RESTARTING);
+                router.restart();
+                LOG.info("I2P Router soft restart completed.");
+            }
             return true;
         } else {
-            router = routerContext.router();
-            if(router != null) {
-                LOG.info("Restarting I2P Router...");
-                router.restart();
-                LOG.info("I2P Router restarted.");
-                return true;
-            }
+            LOG.warning("Unable to restart I2P Router. Router instance not found in RouterContext.");
         }
         return false;
     }
@@ -641,6 +680,8 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
             List<RouterContext> routerContexts = RouterContext.listContexts();
             routerContext = routerContexts.get(0);
             router = routerContext.router();
+            // Override hidden mode even when in I2P defined 'strict' countries
+            router.saveConfig(Router.PROP_HIDDEN, properties.getProperty("hidden"));
             router.setKillVMOnEnd(false);
             routerContext.addShutdownTask(new RouterStopper());
             // Hard code to INFO for now for troubleshooting; need to move to configuration
@@ -705,92 +746,98 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
         return new File(i2pDir, DEST_KEY_FILE_NAME);
     }
 
-    private void routerStatusChanged() {
-        String statusText;
+    private void reportRouterStatus() {
+
         switch (getRouterStatus()) {
             case UNKNOWN:
-                statusText = "Testing I2P Network...";
+                LOG.info("Testing I2P Network...");
                 updateStatus(SensorStatus.NETWORK_CONNECTING);
                 break;
             case IPV4_DISABLED_IPV6_UNKNOWN:
-                statusText = "IPV4 Disabled but IPV6 Testing...";
+                LOG.info("IPV4 Disabled but IPV6 Testing...");
                 updateStatus(SensorStatus.NETWORK_CONNECTING);
                 break;
             case IPV4_FIREWALLED_IPV6_UNKNOWN:
-                statusText = "IPV4 Firewalled but IPV6 Testing...";
+                LOG.info("IPV4 Firewalled but IPV6 Testing...");
                 updateStatus(SensorStatus.NETWORK_CONNECTING);
                 break;
             case IPV4_SNAT_IPV6_UNKNOWN:
-                statusText = "IPV4 SNAT but IPV6 Testing...";
+                LOG.info("IPV4 SNAT but IPV6 Testing...");
                 updateStatus(SensorStatus.NETWORK_CONNECTING);
                 break;
             case IPV4_UNKNOWN_IPV6_FIREWALLED:
-                statusText = "IPV6 Firewalled but IPV4 Testing...";
+                LOG.info("IPV6 Firewalled but IPV4 Testing...");
                 updateStatus(SensorStatus.NETWORK_CONNECTING);
                 break;
             case OK:
-                statusText = "Connected to I2P Network.";
+                LOG.info("Connected to I2P Network.");
                 restartAttempts = 0; // Reset restart attempts
                 updateStatus(SensorStatus.NETWORK_CONNECTED);
                 break;
             case IPV4_DISABLED_IPV6_OK:
-                statusText = "IPV4 Disabled but IPV6 OK: Connected to I2P Network.";
+                LOG.info("IPV4 Disabled but IPV6 OK: Connected to I2P Network.");
                 restartAttempts = 0; // Reset restart attempts
                 updateStatus(SensorStatus.NETWORK_CONNECTED);
                 break;
             case IPV4_FIREWALLED_IPV6_OK:
-                statusText = "IPV4 Firewalled but IPV6 OK: Connected to I2P Network.";
+                LOG.info("IPV4 Firewalled but IPV6 OK: Connected to I2P Network.");
                 restartAttempts = 0; // Reset restart attempts
                 updateStatus(SensorStatus.NETWORK_CONNECTED);
                 break;
             case IPV4_SNAT_IPV6_OK:
-                statusText = "IPV4 SNAT but IPV6 OK: Connected to I2P Network.";
+                LOG.info("IPV4 SNAT but IPV6 OK: Connected to I2P Network.");
                 restartAttempts = 0; // Reset restart attempts
                 updateStatus(SensorStatus.NETWORK_CONNECTED);
                 break;
             case IPV4_UNKNOWN_IPV6_OK:
-                statusText = "IPV4 Testing but IPV6 OK: Connected to I2P Network.";
+                LOG.info("IPV4 Testing but IPV6 OK: Connected to I2P Network.");
                 restartAttempts = 0; // Reset restart attempts
                 updateStatus(SensorStatus.NETWORK_CONNECTED);
                 break;
             case IPV4_OK_IPV6_FIREWALLED:
-                statusText = "IPV6 Firewalled but IPV4 OK: Connected to I2P Network.";
+                LOG.info("IPV6 Firewalled but IPV4 OK: Connected to I2P Network.");
                 restartAttempts = 0; // Reset restart attempts
                 updateStatus(SensorStatus.NETWORK_CONNECTED);
                 break;
             case IPV4_OK_IPV6_UNKNOWN:
-                statusText = "IPV6 Testing but IPV4 OK: Connected to I2P Network.";
+                LOG.info("IPV6 Testing but IPV4 OK: Connected to I2P Network.");
                 restartAttempts = 0; // Reset restart attempts
                 updateStatus(SensorStatus.NETWORK_CONNECTED);
                 break;
+            case IPV4_DISABLED_IPV6_FIREWALLED:
+                LOG.warning("IPV4 Disabled but IPV6 Firewalled. Connected to I2P network.");
+                updateStatus(SensorStatus.NETWORK_CONNECTED);
+                break;
             case DISCONNECTED:
-                statusText = "Disconnected from I2P Network.";
+                LOG.info("Disconnected from I2P Network.");
                 updateStatus(SensorStatus.NETWORK_STOPPED);
                 restart();
                 break;
             case DIFFERENT:
-                statusText = "Symmetric NAT: Error connecting to I2P Network.";
+                LOG.warning("Symmetric NAT: Error connecting to I2P Network.");
                 updateStatus(SensorStatus.NETWORK_ERROR);
                 break;
             case HOSED:
-                statusText = "Unable to open UDP port for I2P.";
+                LOG.warning("Unable to open UDP port for I2P - Port Conflict. Verify another instance of I2P is not running.");
                 updateStatus(SensorStatus.NETWORK_PORT_CONFLICT);
                 break;
-            case IPV4_DISABLED_IPV6_FIREWALLED:
-                statusText = "IPV4 Disabled and IPV6 Firewalled. Unable to connect to I2P network.";
-                updateStatus(SensorStatus.NETWORK_BLOCKED);
-                break;
             case REJECT_UNSOLICITED:
-                statusText = "Firewalled. Unable to connect to I2P network.";
-                // TODO: Change I2P Port
-                updateStatus(SensorStatus.NETWORK_BLOCKED);
+                LOG.warning("Blocked. Unable to connect to I2P network.");
+                if(startTimeBlockedMs==0) {
+                    startTimeBlockedMs = System.currentTimeMillis();
+                    updateStatus(SensorStatus.NETWORK_BLOCKED);
+                } else if((System.currentTimeMillis() - startTimeBlockedMs) > BLOCK_TIME_UNTIL_RESTART) {
+                    restart();
+                    startTimeBlockedMs = 0L; // Restart the clock to give it some time to connect
+                } else {
+                    updateStatus(SensorStatus.NETWORK_BLOCKED);
+                }
                 break;
             default: {
-                statusText = "Not connected to I2P Network.";
+                LOG.warning("Not connected to I2P Network.");
                 updateStatus(SensorStatus.NETWORK_STOPPED);
             }
         }
-        LOG.info(statusText);
     }
 
     private CommSystemFacade.Status getRouterStatus() {
@@ -800,10 +847,8 @@ public class I2PSensor extends BaseSensor implements I2PSessionMuxedListener {
     public void checkRouterStats() {
         if(i2pRouterStatus==null) {
             i2pRouterStatus = getRouterStatus();
-        } else if(getRouterStatus() != i2pRouterStatus) {
-            routerStatusChanged();
-            i2pRouterStatus = getRouterStatus();
         }
+        reportRouterStatus();
         LOG.info("I2P Statistics:\n\tRouter Status: "+getRouterStatus().name());
     }
 
